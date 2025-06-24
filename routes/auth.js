@@ -10,6 +10,7 @@ const router = express.Router();
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
+    console.log('Registration attempt received:', { username: req.body.username, email: req.body.email });
     const { username, email, password, firstName, lastName } = req.body;
 
     // Check if user already exists
@@ -36,6 +37,13 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
+    
+    // Debug: Log database connection details
+    console.log('✅ User saved successfully:', user.username);
+    console.log('🎯 Database name:', user.db.name);
+    console.log('🏠 Collection name:', user.collection.name);
+    console.log('🌐 Connection host:', user.db.host);
+    console.log('📍 Full user ID:', user._id);
 
     // Generate JWT token
     const token = jwt.sign(
@@ -158,6 +166,47 @@ router.get('/me', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// @route   GET /api/auth/debug
+// @desc    Debug database connection and users
+// @access  Public (for debugging only)
+router.get('/debug', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    
+    // Get all users
+    const users = await User.find({}).select('username email createdAt');
+    
+    // Database connection info
+    const dbInfo = {
+      databaseName: mongoose.connection.name,
+      host: mongoose.connection.host,
+      port: mongoose.connection.port,
+      readyState: mongoose.connection.readyState,
+      collections: Object.keys(mongoose.connection.collections)
+    };
+    
+    res.json({
+      success: true,
+      database: dbInfo,
+      totalUsers: users.length,
+      users: users.map(user => ({
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt
+      }))
+    });
+    
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug error',
+      error: error.message
     });
   }
 });

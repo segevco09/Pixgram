@@ -3,4 +3,9 @@
   .env.local
   build/
   dist/
-  *.log
+  *.logPS C:\Visual Studio Code Projects\Pixgram> git remote add origin https://github.com/B3waR3/Pixgram.git
+>> git branch -M main
+>> git push -u origin main
+error: src refspec main does not match any
+error: failed to push some refs to 'https://github.com/B3waR3/Pixgram.git'
+PS C:\Visual Studio Code Projects\Pixgram>
