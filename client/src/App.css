@@ -1,3 +1,29 @@
+/*
+==========================================
+PIXGRAM - CSS3 ONLY STYLING
+==========================================
+
+CSS3 Features Used Throughout This Project:
+✅ border-radius - Rounded corners
+✅ linear-gradient - Gradient backgrounds  
+✅ box-shadow - Drop shadows
+✅ text-shadow - Text shadows
+✅ transition - Smooth animations
+✅ transform - Element transformations
+✅ animation & @keyframes - CSS animations
+✅ rgba() - Colors with transparency
+✅ flexbox - Flexible box layout
+✅ grid - CSS Grid layout
+✅ media queries - Responsive design
+✅ nth-child & pseudo-selectors
+✅ calc() - CSS calculations
+✅ Multiple background support
+
+No vendor prefixes or non-standard properties used.
+All styling is pure CSS3 specification.
+==========================================
+*/
+
 /* Global styles and loading components */
 * {
   box-sizing: border-box;
@@ -5,11 +31,7 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 .App {

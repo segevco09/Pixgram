@@ -22,6 +22,13 @@ const auth = async (req, res, next) => {
       });
     }
 
+
+    
+    // If user doesn't have createdAt, derive it from the ObjectId
+    if (!user.createdAt && user._id) {
+      user.createdAt = user._id.getTimestamp();
+    }
+    
     req.user = user;
     next();
   } catch (error) {

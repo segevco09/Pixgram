@@ -1,4 +1,8 @@
-/* CSS3 Features Used: border-radius, transition, text-shadow */
+/* 
+CSS3 ONLY - Authentication Component Styling
+Features: border-radius, transition, text-shadow, linear-gradient, 
+transform, box-shadow, grid, flexbox, media queries
+*/
 
 .auth-container {
   min-height: 100vh;
@@ -62,7 +66,7 @@
 }
 
 .form-group label {
-  color: #333;
+  color: #333 !important;
   font-weight: 500;
   margin-bottom: 5px;
   font-size: 0.9rem;
@@ -77,6 +81,8 @@
   outline: none;
   width: 100%;
   box-sizing: border-box; /* Ensures padding is included in width calculation */
+  background: white !important;
+  color: #333 !important;
 }
 
 .form-group input:focus {
@@ -85,7 +91,7 @@
 }
 
 .form-group input::placeholder {
-  color: #aaa;
+  color: #aaa !important;
 }
 
 .auth-button {

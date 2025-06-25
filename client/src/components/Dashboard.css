@@ -1,4 +1,8 @@
-/* CSS3 Features Used: border-radius, transition, text-shadow */
+/* 
+CSS3 ONLY - Dashboard Component Styling
+Features: border-radius, transition, text-shadow, linear-gradient,
+transform, box-shadow, grid, flexbox, media queries
+*/
 
 .dashboard-container {
   min-height: 100vh;
@@ -19,12 +23,50 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 30px;
 }
 
 .header-content h1 {
   margin: 0;
   font-size: 2rem;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* CSS3 text-shadow */
+}
+
+/* Dashboard Navigation */
+.dashboard-nav {
+  display: flex;
+  gap: 15px;
+}
+
+.nav-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  padding: 10px 20px;
+  border-radius: 25px; /* CSS3 border-radius */
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease; /* CSS3 transition */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nav-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px); /* CSS3 transform */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* CSS3 box-shadow */
+}
+
+.nav-button.active {
+  background: linear-gradient(45deg, #ff6b6b, #ee5a24); /* CSS3 linear-gradient */
+  border-color: #ff6b6b;
+  box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3); /* CSS3 box-shadow */
+}
+
+.nav-button.active:hover {
+  transform: translateY(-2px) scale(1.05); /* CSS3 transform */
+  box-shadow: 0 6px 20px rgba(238, 90, 36, 0.4); /* CSS3 box-shadow */
 }
 
 .user-info {
@@ -56,9 +98,9 @@
 }
 
 .dashboard-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 20px;
+  margin: 0;
+  padding: 0;
+  background: #f8f9fa;
 }
 
 .welcome-section {
@@ -122,9 +164,19 @@
     text-align: center;
   }
   
+  .dashboard-nav {
+    order: 2;
+  }
+  
   .user-info {
     flex-direction: column;
     gap: 10px;
+    order: 3;
+  }
+  
+  .nav-button {
+    padding: 8px 16px;
+    font-size: 0.9rem;
   }
   
   .welcome-section {

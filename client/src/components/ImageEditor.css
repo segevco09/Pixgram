@@ -1,0 +1,295 @@
+/* 
+CSS3 ONLY - Image Editor Styling
+Features: flexbox, grid, border-radius, transition, box-shadow,
+transform, backdrop-filter (where supported)
+*/
+
+.image-editor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  z-index: 2000;
+}
+
+.editor-header {
+  background: white;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.editor-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.editor-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.reset-button {
+  background: #f1f3f4;
+  color: #666;
+}
+
+.reset-button:hover {
+  background: #e8eaed;
+}
+
+.cancel-button {
+  background: #dc3545;
+  color: white;
+}
+
+.cancel-button:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
+.save-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.save-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.editor-content {
+  flex: 1;
+  display: flex;
+  background: #f8f9fa;
+}
+
+.canvas-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: #222;
+}
+
+.edit-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border: 2px solid white;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.editor-controls {
+  width: 300px;
+  background: white;
+  padding: 20px;
+  overflow-y: auto;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.control-section {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.control-section:last-child {
+  border-bottom: none;
+}
+
+.control-section h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.filter-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.filter-buttons button {
+  padding: 8px 12px;
+  border: 2px solid #e1e5e9;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.filter-buttons button:hover {
+  border-color: #667eea;
+  transform: translateY(-1px);
+}
+
+.filter-buttons button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+
+.slider-control {
+  margin-bottom: 15px;
+}
+
+.slider-control label {
+  display: block;
+  margin-bottom: 5px;
+  color: #333;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.slider-control input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e1e5e9;
+  outline: none;
+  transition: background 0.3s ease;
+}
+
+.slider-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.slider-control input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.slider-control input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.drawing-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.drawing-controls button {
+  padding: 10px;
+  border: 2px solid #e1e5e9;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.drawing-controls button:hover {
+  border-color: #667eea;
+  transform: translateY(-1px);
+}
+
+.drawing-controls button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+
+.brush-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brush-controls label {
+  color: #333;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.brush-controls input[type="range"] {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #e1e5e9;
+  outline: none;
+}
+
+.color-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-control label {
+  color: #333;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.color-control input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.color-control input[type="color"]:hover {
+  transform: scale(1.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .editor-content {
+    flex-direction: column;
+  }
+  
+  .canvas-container {
+    flex: 1;
+    min-height: 50vh;
+  }
+  
+  .editor-controls {
+    width: 100%;
+    max-height: 40vh;
+  }
+  
+  .filter-buttons {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .editor-header {
+    padding: 15px;
+  }
+  
+  .editor-actions {
+    flex-wrap: wrap;
+  }
+} 

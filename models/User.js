@@ -51,7 +51,21 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
     default: Date.now
-  }
+  },
+  friends: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  friendRequests: [{
+    from: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
   timestamps: true
 });
@@ -72,6 +86,37 @@ userSchema.pre('save', async function(next) {
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Friend management methods
+userSchema.methods.isFriend = function(userId) {
+  return this.friends.includes(userId);
+};
+
+userSchema.methods.hasFriendRequest = function(userId) {
+  return this.friendRequests.some(request => request.from.equals(userId));
+};
+
+userSchema.methods.addFriend = function(userId) {
+  if (!this.isFriend(userId)) {
+    this.friends.push(userId);
+    // Remove friend request if it exists
+    this.friendRequests = this.friendRequests.filter(request => !request.from.equals(userId));
+  }
+};
+
+userSchema.methods.removeFriend = function(userId) {
+  this.friends = this.friends.filter(friendId => !friendId.equals(userId));
+};
+
+userSchema.methods.addFriendRequest = function(userId) {
+  if (!this.isFriend(userId) && !this.hasFriendRequest(userId)) {
+    this.friendRequests.push({ from: userId });
+  }
+};
+
+userSchema.methods.removeFriendRequest = function(userId) {
+  this.friendRequests = this.friendRequests.filter(request => !request.from.equals(userId));
 };
 
 // Remove password from JSON output

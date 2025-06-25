@@ -1,0 +1,370 @@
+/* 
+CSS3 ONLY - Social Media Feed Styling
+Features: flexbox, grid, border-radius, transition, box-shadow, 
+linear-gradient, transform, animation, media queries
+*/
+
+.feed-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* Create Post Prompt */
+.create-post-prompt {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.create-post-button {
+  flex: 1;
+  background: #f1f3f4;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 20px;
+  cursor: pointer;
+  color: #666;
+  text-align: left;
+  transition: background-color 0.3s ease;
+}
+
+.create-post-button:hover {
+  background: #e8eaed;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transform: scale(0.9);
+  animation: modalAppear 0.3s ease forwards;
+}
+
+@keyframes modalAppear {
+  to {
+    transform: scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.3s ease;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+/* Form Styles */
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.modal-content textarea {
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 16px;
+  resize: vertical;
+  transition: border-color 0.3s ease;
+}
+
+.modal-content textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.modal-content button[type="button"] {
+  background: #f1f3f4;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.modal-content button[type="button"]:hover {
+  background: #e8eaed;
+}
+
+.modal-content button[type="submit"] {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.modal-content button[type="submit"]:hover {
+  transform: translateY(-2px);
+}
+
+/* File Preview */
+.file-preview {
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.file-preview img,
+.file-preview video {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+}
+
+/* Post Card Styles */
+.posts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.post-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 20px 20px 0 20px;
+}
+
+.post-header .user-avatar {
+  width: 50px;
+  height: 50px;
+  font-size: 16px;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.post-time {
+  color: #666;
+  font-size: 14px;
+}
+
+.post-content {
+  padding: 15px 20px;
+}
+
+.post-content p {
+  margin: 0 0 15px 0;
+  line-height: 1.5;
+  color: #333;
+}
+
+.post-media {
+  margin-top: 15px;
+}
+
+.post-media img,
+.post-media video {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Post Actions */
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 15px 20px;
+  border-top: 1px solid #f1f3f4;
+}
+
+.like-button,
+.post-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  transition: background-color 0.3s ease;
+  font-size: 14px;
+  color: #666;
+}
+
+.like-button:hover,
+.post-actions button:hover {
+  background: #f1f3f4;
+}
+
+.like-button.liked {
+  color: #e91e63;
+}
+
+/* Comments Section */
+.comments-section {
+  border-top: 1px solid #f1f3f4;
+  padding: 15px 20px;
+}
+
+.comments-section form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.comments-section input {
+  flex: 1;
+  border: 1px solid #e1e5e9;
+  border-radius: 20px;
+  padding: 8px 15px;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.comments-section input:focus {
+  border-color: #667eea;
+}
+
+.comments-section form button {
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 15px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.comments-section form button:hover {
+  background: #5a67d8;
+}
+
+.comment {
+  margin-bottom: 10px;
+  padding: 8px 0;
+}
+
+.comment strong {
+  color: #333;
+  margin-right: 8px;
+}
+
+.comment span {
+  color: #666;
+}
+
+/* Loading States */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.loading-spinner {
+  color: #667eea;
+  font-size: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .feed-container {
+    padding: 10px;
+  }
+  
+  .modal-content {
+    margin: 20px;
+    padding: 20px;
+  }
+  
+  .post-header,
+  .post-content,
+  .post-actions,
+  .comments-section {
+    padding: 15px;
+  }
+  
+  .create-post-prompt {
+    padding: 15px;
+  }
+} 

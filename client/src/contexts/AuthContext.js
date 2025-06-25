@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.get('/api/auth/me');
       if (response.data.success) {
+
         setUser(response.data.user);
       }
     } catch (error) {
@@ -45,6 +46,7 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post('/api/auth/login', { email, password });
       if (response.data.success) {
         const { token, user } = response.data;
+
         localStorage.setItem('token', token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setUser(user);

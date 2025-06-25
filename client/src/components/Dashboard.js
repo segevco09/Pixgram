@@ -1,12 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import Feed from './Feed';
+import Groups from './Groups';
+import Chat from './Chat';
+import Friends from './Friends';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('feed');
 
   const handleLogout = () => {
     logout();
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'feed':
+        return <Feed />;
+      case 'groups':
+        return <Groups />;
+      case 'friends':
+        return <Friends />;
+      case 'chat':
+        return <Chat />;
+      default:
+        return <Feed />;
+    }
   };
 
   return (
@@ -14,6 +34,32 @@ const Dashboard = () => {
       <header className="dashboard-header">
         <div className="header-content">
           <h1>Pixgram</h1>
+          <nav className="dashboard-nav">
+            <button
+              className={`nav-button ${activeTab === 'feed' ? 'active' : ''}`}
+              onClick={() => setActiveTab('feed')}
+            >
+              Feed
+            </button>
+            <button
+              className={`nav-button ${activeTab === 'groups' ? 'active' : ''}`}
+              onClick={() => setActiveTab('groups')}
+            >
+              Groups
+            </button>
+            <button
+              className={`nav-button ${activeTab === 'friends' ? 'active' : ''}`}
+              onClick={() => setActiveTab('friends')}
+            >
+              Friends
+            </button>
+            <button
+              className={`nav-button ${activeTab === 'chat' ? 'active' : ''}`}
+              onClick={() => setActiveTab('chat')}
+            >
+              Chat
+            </button>
+          </nav>
           <div className="user-info">
             <span>Welcome, {user?.firstName} {user?.lastName}!</span>
             <button onClick={handleLogout} className="logout-button">
@@ -24,20 +70,7 @@ const Dashboard = () => {
       </header>
 
       <main className="dashboard-main">
-        <div className="welcome-section">
-          <h2>Welcome to Pixgram</h2>
-          <p>You have successfully logged in! This is a minimal dashboard to demonstrate the authentication functionality.</p>
-          
-          <div className="user-details">
-            <h3>Your Profile</h3>
-            <div className="profile-info">
-              <p><strong>Username:</strong> {user?.username}</p>
-              <p><strong>Email:</strong> {user?.email}</p>
-              <p><strong>Name:</strong> {user?.firstName} {user?.lastName}</p>
-              <p><strong>Member since:</strong> {new Date(user?.createdAt).toLocaleDateString()}</p>
-            </div>
-          </div>
-        </div>
+        {renderContent()}
       </main>
     </div>
   );

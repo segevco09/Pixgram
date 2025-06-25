@@ -62,7 +62,8 @@ router.post('/register', async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        profilePicture: user.profilePicture
+        profilePicture: user.profilePicture,
+        createdAt: user.createdAt
       }
     });
 
@@ -139,7 +140,8 @@ router.post('/login', async (req, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        profilePicture: user.profilePicture
+        profilePicture: user.profilePicture,
+        createdAt: user.createdAt
       }
     });
 
@@ -207,6 +209,77 @@ router.get('/debug', async (req, res) => {
       success: false,
       message: 'Debug error',
       error: error.message
+    });
+  }
+});
+
+// @route   GET /api/auth/fix-users
+// @desc    Fix existing users without createdAt field
+// @access  Public (for debugging only)
+router.get('/fix-users', async (req, res) => {
+  try {
+    // Find users without createdAt field
+    const usersWithoutCreatedAt = await User.find({ createdAt: { $exists: false } });
+    
+    if (usersWithoutCreatedAt.length === 0) {
+      return res.json({
+        success: true,
+        message: 'All users already have createdAt field',
+        usersUpdated: 0
+      });
+    }
+
+    // Update users to add createdAt field with their _id creation time
+    const updatePromises = usersWithoutCreatedAt.map(user => {
+      // Extract timestamp from MongoDB ObjectId
+      const createdAtFromId = user._id.getTimestamp();
+      return User.findByIdAndUpdate(user._id, { 
+        createdAt: createdAtFromId,
+        updatedAt: new Date()
+      });
+    });
+
+    await Promise.all(updatePromises);
+
+    res.json({
+      success: true,
+      message: 'Users updated successfully',
+      usersUpdated: usersWithoutCreatedAt.length,
+      updatedUsers: usersWithoutCreatedAt.map(user => ({
+        username: user.username,
+        email: user.email,
+        originalId: user._id,
+        newCreatedAt: user._id.getTimestamp()
+      }))
+    });
+
+  } catch (error) {
+    console.error('Fix users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fixing users',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/auth/users
+// @desc    Get all users for chat
+// @access  Private
+router.get('/users', auth, async (req, res) => {
+  try {
+    const users = await User.find({}, 'firstName lastName username')
+      .sort({ firstName: 1 });
+    
+    res.json({
+      success: true,
+      users
+    });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
     });
   }
 });
