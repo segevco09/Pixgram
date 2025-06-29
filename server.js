@@ -106,36 +106,65 @@ io.on('connection', (socket) => {
     console.log(`User ${userId} joined their room`);
   });
 
-  // Handle private messages (legacy - saves to database)
+  // Handle private messages (saves to Chats database)
   socket.on('send-message', async (data) => {
-    const { senderId, receiverId, message, senderName } = data;
+    console.log('🔍 RAW SOCKET DATA:', data);
+    const { senderId, receiverId, message, senderName, receiverName } = data;
+    
+    console.log('🔍 EXTRACTED VALUES:', {
+      senderId,
+      receiverId,
+      message,
+      senderName,
+      receiverName,
+      senderIdType: typeof senderId,
+      receiverIdType: typeof receiverId
+    });
     
     try {
-      // Save message to database
-      const Message = require('./models/Message');
-      const newMessage = new Message({
-        sender: senderId,
-        receiver: receiverId,
-        content: message
-      });
+      console.log(`💬 Socket saving message from ${senderName} to ${receiverName || receiverId}: ${message}`);
       
-      await newMessage.save();
-      await newMessage.populate('sender', 'firstName lastName username profilePicture');
-      await newMessage.populate('receiver', 'firstName lastName username profilePicture');
+      // Save message to Chats database using ChatManager
+      const { chatManager } = require('./models/ChatMessage');
+      
+      // Get receiver name if not provided
+      let finalReceiverName = receiverName;
+      if (!finalReceiverName) {
+        const User = require('./models/User');
+        const receiver = await User.findById(receiverId);
+        finalReceiverName = receiver ? receiver.name : 'Unknown User';
+      }
+      
+      const savedMessage = await chatManager.sendMessage(
+        senderId,
+        senderName,
+        receiverId,
+        finalReceiverName,
+        message,
+        'text'
+      );
       
       // Emit to receiver's room with saved message data
       socket.to(`user-${receiverId}`).emit('new-message', {
-        _id: newMessage._id,
-        senderId,
-        senderName,
-        message,
-        timestamp: newMessage.createdAt,
-        isRead: false
+        _id: savedMessage._id,
+        senderId: savedMessage.senderId,
+        senderName: savedMessage.senderName,
+        receiverId: savedMessage.receiverId,
+        receiverName: savedMessage.receiverName,
+        message: savedMessage.content,
+        timestamp: savedMessage.createdAt,
+        isRead: savedMessage.isRead
       });
       
-      console.log(`Message saved and sent from ${senderName} to user ${receiverId}: ${message}`);
+      // Confirm to sender
+      socket.emit('message-confirmed', {
+        _id: savedMessage._id,
+        timestamp: savedMessage.createdAt
+      });
+      
+      console.log(`✅ Message saved to Chats DB and sent from ${senderName} to ${finalReceiverName}: ${message}`);
     } catch (error) {
-      console.error('Error saving message:', error);
+      console.error('❌ Error saving message to Chats DB:', error);
       
       // Still emit the message even if save fails (fallback)
       socket.to(`user-${receiverId}`).emit('new-message', {
@@ -144,7 +173,11 @@ io.on('connection', (socket) => {
         message,
         timestamp: new Date(),
         isRead: false,
-        error: 'Message not saved to database'
+        error: 'Message not saved to Chats database'
+      });
+      
+      socket.emit('message-error', {
+        error: 'Failed to save message to database'
       });
     }
   });

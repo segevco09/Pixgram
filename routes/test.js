@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -83,24 +84,31 @@ router.post('/create-users', async (req, res) => {
 });
 
 // @route   GET /api/test/users
-// @desc    Get all users for testing
+// @desc    Get all users for testing/chat
 // @access  Public (for testing only)
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.find()
-      .select('username firstName lastName email createdAt')
-      .sort({ createdAt: -1 });
+    console.log('📋 Getting all users for chat...');
+    
+    const users = await User.find({}, 'firstName lastName name username email createdAt')
+      .select('username firstName lastName name email createdAt')
+      .sort({ createdAt: -1 })
+      .limit(20); // Limit to prevent too much data
+
+    console.log(`👥 Found ${users.length} users`);
 
     res.json({
       success: true,
       count: users.length,
-      users
+      users,
+      total: users.length
     });
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: error.message
     });
   }
 });

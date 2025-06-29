@@ -1,7 +1,7 @@
 const express = require('express');
-const Message = require('../models/Message');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { chatManager } = require('../models/ChatMessage');
 
 console.log('🔄 Loading messages routes...');
 
@@ -23,86 +23,21 @@ router.get('/test', auth, (req, res) => {
 // @access  Private
 router.get('/conversations', auth, async (req, res) => {
   try {
-    const currentUserId = req.user._id;
-
-    // Get all messages where user is sender or receiver
-    const messages = await Message.aggregate([
-      {
-        $match: {
-          $or: [
-            { sender: currentUserId },
-            { receiver: currentUserId }
-          ],
-          isDeleted: false
-        }
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $eq: ['$sender', currentUserId] },
-              '$receiver',
-              '$sender'
-            ]
-          },
-          lastMessage: { $first: '$$ROOT' },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ['$receiver', currentUserId] },
-                    { $eq: ['$isRead', false] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user'
-        }
-      },
-      {
-        $unwind: '$user'
-      },
-      {
-        $project: {
-          user: {
-            _id: '$user._id',
-            firstName: '$user.firstName',
-            lastName: '$user.lastName',
-            username: '$user.username',
-            profilePicture: '$user.profilePicture'
-          },
-          lastMessage: '$lastMessage',
-          unreadCount: '$unreadCount'
-        }
-      },
-      {
-        $sort: { 'lastMessage.createdAt': -1 }
-      }
-    ]);
-
+    console.log(`📋 Getting conversations for user: ${req.user.id}`);
+    
+    const conversations = await chatManager.getUserConversations(req.user.id);
+    
     res.json({
       success: true,
-      conversations: messages
+      conversations,
+      total: conversations.length
     });
   } catch (error) {
-    console.error('Get conversations error:', error);
+    console.error('Error fetching conversations:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Failed to fetch conversations',
+      error: error.message
     });
   }
 });
@@ -112,32 +47,47 @@ router.get('/conversations', auth, async (req, res) => {
 // @access  Private
 router.get('/conversation/:userId', auth, async (req, res) => {
   try {
-    const currentUserId = req.user._id;
-    const otherUserId = req.params.userId;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const skip = (page - 1) * limit;
-
-    // Get conversation messages
-    const messages = await Message.getConversation(currentUserId, otherUserId, limit, skip);
+    const { userId } = req.params;
+    const { limit = 50, skip = 0 } = req.query;
     
-    // Reverse to show oldest first
-    messages.reverse();
+    console.log(`📖 Loading conversation between ${req.user.id} and ${userId}`);
+    
+    // Verify the other user exists
+    const otherUser = await User.findById(userId);
+    if (!otherUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
 
-    // Mark messages as read
-    await Message.markConversationAsRead(otherUserId, currentUserId);
+    // Get conversation history from Chats database
+    const messages = await chatManager.getConversation(
+      req.user.id, 
+      userId, 
+      parseInt(limit), 
+      parseInt(skip)
+    );
+
+    // Mark messages as read (messages sent by the other user to current user)
+    await chatManager.markMessagesAsRead(userId, req.user.id);
 
     res.json({
       success: true,
       messages,
-      page,
-      hasMore: messages.length === limit
+      otherUser: {
+        id: otherUser._id,
+        name: otherUser.name,
+        username: otherUser.username
+      },
+      total: messages.length
     });
   } catch (error) {
-    console.error('Get conversation error:', error);
+    console.error('Error loading conversation:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Failed to load conversation',
+      error: error.message
     });
   }
 });
@@ -147,137 +97,82 @@ router.get('/conversation/:userId', auth, async (req, res) => {
 // @access  Private
 router.post('/send', auth, async (req, res) => {
   try {
-    console.log('=== MESSAGE SEND DEBUG ===');
-    console.log('Request body:', req.body);
-    console.log('User from auth:', req.user);
-    
     const { receiverId, content, messageType = 'text' } = req.body;
-    const senderId = req.user._id;
-
-    console.log('Parsed data:', { senderId, receiverId, content, messageType });
 
     if (!receiverId || !content) {
-      console.log('Missing required fields');
       return res.status(400).json({
         success: false,
-        message: 'Receiver and content are required'
+        message: 'Receiver ID and content are required'
       });
     }
 
-    // Check if receiver exists
-    console.log('Checking if receiver exists...');
+    console.log(`💬 Sending message from ${req.user.id} to ${receiverId}`);
+
+    // Verify receiver exists
     const receiver = await User.findById(receiverId);
     if (!receiver) {
-      console.log('Receiver not found');
       return res.status(404).json({
         success: false,
         message: 'Receiver not found'
       });
     }
-    console.log('Receiver found:', receiver.firstName, receiver.lastName);
 
-    // Create message
-    console.log('Creating message...');
-    const message = new Message({
-      sender: senderId,
-      receiver: receiverId,
+    // Get sender info
+    const sender = await User.findById(req.user.id);
+    if (!sender) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sender not found'
+      });
+    }
+
+    // Save message to Chats database
+    const message = await chatManager.sendMessage(
+      req.user.id,
+      sender.name,
+      receiverId,
+      receiver.name,
       content,
       messageType
-    });
+    );
 
-    console.log('Saving message...');
-    await message.save();
-    console.log('Message saved with ID:', message._id);
-
-    // Populate sender and receiver info
-    console.log('Populating sender and receiver info...');
-    await message.populate('sender', 'firstName lastName username profilePicture');
-    await message.populate('receiver', 'firstName lastName username profilePicture');
-
-    console.log('Message send successful, returning response');
     res.status(201).json({
       success: true,
-      message
+      message: 'Message sent successfully',
+      data: message
     });
   } catch (error) {
-    console.error('=== MESSAGE SEND ERROR ===');
-    console.error('Error:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
+    console.error('Error sending message:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error: ' + error.message
+      message: 'Failed to send message',
+      error: error.message
     });
   }
 });
 
-// @route   PUT /api/messages/:messageId/read
-// @desc    Mark message as read
+// @route   PUT /api/messages/read/:userId
+// @desc    Mark messages as read
 // @access  Private
-router.put('/:messageId/read', auth, async (req, res) => {
+router.put('/read/:userId', auth, async (req, res) => {
   try {
-    const messageId = req.params.messageId;
-    const currentUserId = req.user._id;
+    const { userId } = req.params;
+    
+    console.log(`✅ Marking messages as read from ${userId} to ${req.user.id}`);
 
-    const message = await Message.findOne({
-      _id: messageId,
-      receiver: currentUserId
-    });
-
-    if (!message) {
-      return res.status(404).json({
-        success: false,
-        message: 'Message not found'
-      });
-    }
-
-    await message.markAsRead();
+    const result = await chatManager.markMessagesAsRead(userId, req.user.id);
 
     res.json({
       success: true,
-      message: 'Message marked as read'
+      message: 'Messages marked as read',
+      modifiedCount: result.modifiedCount
     });
   } catch (error) {
-    console.error('Mark message as read error:', error);
+    console.error('Error marking messages as read:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
-    });
-  }
-});
-
-// @route   DELETE /api/messages/:messageId
-// @desc    Delete a message
-// @access  Private
-router.delete('/:messageId', auth, async (req, res) => {
-  try {
-    const messageId = req.params.messageId;
-    const currentUserId = req.user._id;
-
-    const message = await Message.findOne({
-      _id: messageId,
-      sender: currentUserId
-    });
-
-    if (!message) {
-      return res.status(404).json({
-        success: false,
-        message: 'Message not found or not authorized'
-      });
-    }
-
-    message.isDeleted = true;
-    await message.save();
-
-    res.json({
-      success: true,
-      message: 'Message deleted'
-    });
-  } catch (error) {
-    console.error('Delete message error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
+      message: 'Failed to mark messages as read',
+      error: error.message
     });
   }
 });
@@ -287,18 +182,91 @@ router.delete('/:messageId', auth, async (req, res) => {
 // @access  Private
 router.get('/unread-count', auth, async (req, res) => {
   try {
-    const currentUserId = req.user._id;
-    const count = await Message.getUnreadCount(currentUserId);
+    console.log(`📊 Getting unread count for user: ${req.user.id}`);
+    
+    const unreadCount = await chatManager.getUnreadCount(req.user.id);
 
     res.json({
       success: true,
-      unreadCount: count
+      unreadCount
     });
   } catch (error) {
-    console.error('Get unread count error:', error);
+    console.error('Error getting unread count:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Failed to get unread count',
+      error: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/messages/:messageId
+// @desc    Delete a message
+// @access  Private
+router.delete('/:messageId', auth, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { otherUserId } = req.body;
+
+    if (!otherUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Other user ID is required'
+      });
+    }
+
+    console.log(`🗑️ Deleting message ${messageId}`);
+
+    const result = await chatManager.deleteMessage(messageId, req.user.id, otherUserId);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Message deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete message',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/messages/stats
+// @desc    Get chat statistics (for debugging/admin)
+// @access  Private
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const conversations = await chatManager.getUserConversations(req.user.id);
+    const unreadCount = await chatManager.getUnreadCount(req.user.id);
+
+    res.json({
+      success: true,
+      stats: {
+        totalConversations: conversations.length,
+        totalUnreadMessages: unreadCount,
+        conversations: conversations.map(conv => ({
+          otherUser: conv.otherUserName,
+          lastMessageAt: conv.lastMessage.createdAt,
+          unreadCount: conv.unreadCount,
+          collection: conv.collectionName
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error getting chat stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get chat statistics',
+      error: error.message
     });
   }
 });

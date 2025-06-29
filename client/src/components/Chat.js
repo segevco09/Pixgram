@@ -1,190 +1,317 @@
 import React, { useState, useEffect, useRef } from 'react';
-import io from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import io from 'socket.io-client';
 import './Chat.css';
 
-const Chat = () => {
+function Chat() {
   const { user } = useAuth();
-  const [socket, setSocket] = useState(null);
+  const [friends, setFriends] = useState([]);
+  const [selectedFriend, setSelectedFriend] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [onlineUsers, setOnlineUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [allUsers, setAllUsers] = useState([]);
+  const [socket, setSocket] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [conversations, setConversations] = useState([]);
   const messagesEndRef = useRef(null);
 
+  // Initialize socket connection
   useEffect(() => {
-    // Initialize socket connection
-    const newSocket = io('http://localhost:5000');
-    setSocket(newSocket);
-
-    // Join user's personal room
     if (user) {
-      newSocket.emit('join-user-room', user._id);
+      console.log('🔌 Initializing socket connection for user:', user.id);
+      const newSocket = io('http://localhost:5000');
+      
+      newSocket.on('connect', () => {
+        console.log('✅ Socket connected:', newSocket.id);
+        newSocket.emit('join-user-room', user._id || user.id);
+      });
+
+      newSocket.on('disconnect', () => {
+        console.log('❌ Socket disconnected');
+      });
+
+      // Listen for new messages from Chats database
+      newSocket.on('new-message', (messageData) => {
+        console.log('📨 Received new message via socket:', messageData);
+        
+        // Add message to current conversation if it's the active chat
+        if (selectedFriend && 
+            (messageData.senderId === selectedFriend.id || messageData.receiverId === selectedFriend.id)) {
+          setMessages(prev => [...prev, {
+            _id: messageData._id,
+            senderId: messageData.senderId,
+            senderName: messageData.senderName,
+            receiverId: messageData.receiverId,
+            receiverName: messageData.receiverName,
+            content: messageData.message,
+            createdAt: messageData.timestamp,
+            isRead: messageData.isRead
+          }]);
+        }
+
+        // Update conversations list
+        loadConversations();
+      });
+
+      newSocket.on('message-confirmed', (data) => {
+        console.log('✅ Message confirmed:', data);
+      });
+
+      newSocket.on('message-error', (error) => {
+        console.error('❌ Socket message error:', error);
+        alert('Failed to send message: ' + error.error);
+      });
+
+      setSocket(newSocket);
+
+      return () => {
+        console.log('🔌 Cleaning up socket connection');
+        newSocket.disconnect();
+      };
     }
+  }, [user, selectedFriend]);
 
-    // Listen for new messages
-    newSocket.on('new-message', (messageData) => {
-      setMessages(prev => [...prev, {
-        ...messageData,
-        isReceived: true
-      }]);
-    });
-
-    // Fetch all users for chat list
-    fetchUsers();
-
-    return () => {
-      newSocket.close();
-    };
+  // Load friends list
+  useEffect(() => {
+    console.log('🔄 Chat component effect triggered');
+    console.log('👤 User state:', user);
+    
+    if (user) {
+      console.log('🔄 User is available, loading friends and conversations...');
+      console.log('👤 Current user details:', {
+        id: user.id,
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        fullName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username
+      });
+      
+      loadFriends();
+      loadConversations();
+    } else {
+      console.log('⚠️ User not available yet');
+    }
   }, [user]);
 
+  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get('/api/auth/users');
-      if (response.data.success) {
-        // Filter out current user
-        const otherUsers = response.data.users.filter(u => u._id !== user._id);
-        setAllUsers(otherUsers);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
-  const loadConversation = async (userId) => {
-    try {
-      console.log('Loading conversation with user:', userId);
-      const response = await axios.get(`/api/messages/conversation/${userId}`);
-      console.log('Conversation response:', response.data);
-      if (response.data.success) {
-        const formattedMessages = response.data.messages.map(msg => ({
-          _id: msg._id,
-          senderId: msg.sender._id,
-          senderName: `${msg.sender.firstName} ${msg.sender.lastName}`,
-          message: msg.content,
-          timestamp: msg.createdAt,
-          isReceived: msg.sender._id !== user._id
-        }));
-        setMessages(formattedMessages);
-      }
-    } catch (error) {
-      console.error('Error loading conversation:', error);
-      console.error('Error details:', error.response?.data);
-      setMessages([]); // Clear messages on error
-    }
-  };
-
-  const testMessagesAPI = async () => {
-    try {
-      console.log('Testing messages API...');
-      const response = await axios.get('/api/messages/test');
-      console.log('Messages API test response:', response.data);
-      alert('Messages API is working! Check console for details.');
-    } catch (error) {
-      console.error('Messages API test failed:', error);
-      console.error('Error details:', error.response?.data);
-      alert('Messages API test failed. Check console for details.');
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedUser) return;
+  const loadFriends = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      console.log('🔍 Loading friends for chat...');
+      
+      // First try to load friends
+      const friendsResponse = await fetch('http://localhost:5000/api/friends', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      let friendsList = [];
+      if (friendsResponse.ok) {
+        const friendsData = await friendsResponse.json();
+        console.log('👥 Loaded friends:', friendsData.friends);
+        friendsList = friendsData.friends || [];
+      }
+      
+      // Always load all users as well (for chat purposes)
+      console.log('👥 Loading all registered users for chat...');
+      await loadAllUsers();
+      
+      // If we have friends, we could prioritize them later
+      if (friendsList.length > 0) {
+        console.log(`✅ Found ${friendsList.length} friends`);
+      }
+      
+    } catch (error) {
+      console.error('Error loading friends:', error);
+      // Fallback to loading all users
+      await loadAllUsers();
+    }
+  };
 
-    console.log('Attempting to send message:', {
-      receiverId: selectedUser._id,
-      content: newMessage.trim(),
-      user: user
+  const loadAllUsers = async () => {
+    try {
+      console.log('👥 Loading all registered users...');
+      console.log('👤 Current user ID:', user?.id);
+      
+      // Get users from the test endpoint (no auth needed)
+      const response = await fetch('http://localhost:5000/api/test/users');
+      
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('👥 Raw API response:', data);
+        console.log('👥 Users count:', data.users?.length);
+        
+        if (data.users && data.users.length > 0) {
+          // Convert users to friends format and exclude current user
+          const usersAsFriends = data.users
+            .filter(u => {
+              const currentUserId = user?._id || user?.id;
+              const isCurrentUser = u._id === currentUserId;
+              console.log(`🔍 User ${u.username} (${u._id}) - Current user: ${isCurrentUser} (comparing with ${currentUserId})`);
+              return !isCurrentUser;
+            })
+            .map(u => ({
+              id: u._id,
+              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username,
+              username: u.username,
+              firstName: u.firstName,
+              lastName: u.lastName
+            }));
+          
+          console.log('✅ Final users for chat:', usersAsFriends);
+          console.log(`📊 Setting ${usersAsFriends.length} users in chat list`);
+          setFriends(usersAsFriends);
+          
+          if (usersAsFriends.length === 0) {
+            console.log('⚠️ No other users found to chat with');
+          }
+        } else {
+          console.log('⚠️ No users array in response or empty array');
+        }
+      } else {
+        console.error('❌ Failed to load users, status:', response.status);
+        const errorText = await response.text();
+        console.error('❌ Error response:', errorText);
+      }
+    } catch (error) {
+      console.error('❌ Error loading all users:', error);
+      console.error('❌ Error details:', error.message);
+      console.error('❌ Stack trace:', error.stack);
+    }
+  };
+
+  const loadConversations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/messages/conversations', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('💬 Loaded conversations from Chats DB:', data.conversations);
+        setConversations(data.conversations || []);
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+    }
+  };
+
+  const loadConversation = async (friendId) => {
+    if (!friendId) return;
+    
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      console.log(`📖 Loading conversation with user ${friendId} from Chats DB`);
+      
+      const response = await fetch(`http://localhost:5000/api/messages/conversation/${friendId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`📖 Loaded ${data.messages.length} messages from Chats DB:`, data.messages);
+        
+        // Convert messages to expected format
+        const formattedMessages = data.messages.map(msg => ({
+          _id: msg._id,
+          senderId: msg.senderId,
+          senderName: msg.senderName,
+          receiverId: msg.receiverId,
+          receiverName: msg.receiverName,
+          content: msg.content,
+          createdAt: msg.createdAt,
+          isRead: msg.isRead
+        }));
+        
+        setMessages(formattedMessages);
+      } else {
+        console.error('Failed to load conversation');
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+      setMessages([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const selectFriend = (friend) => {
+    console.log('👤 Selected friend:', friend);
+    setSelectedFriend(friend);
+    loadConversation(friend.id);
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedFriend || !socket) return;
+
+    console.log('🔍 DEBUG - User object:', user);
+    console.log('🔍 DEBUG - User ID:', user.id);
+    console.log('🔍 DEBUG - User _ID:', user._id);
+    console.log('🔍 DEBUG - Selected friend:', selectedFriend);
+    console.log('🔍 DEBUG - Selected friend ID:', selectedFriend.id);
+
+    // Construct full name from firstName and lastName
+    const senderName = user.firstName && user.lastName 
+      ? `${user.firstName} ${user.lastName}` 
+      : user.username || 'Unknown User';
+
+    const messageData = {
+      senderId: user._id || user.id,
+      receiverId: selectedFriend.id,
+      message: newMessage.trim(),
+      senderName: senderName,
+      receiverName: selectedFriend.name
+    };
+
+    console.log('📤 Sending message via socket to Chats DB:', messageData);
+    console.log('🔍 DEBUG - Message data types:', {
+      senderIdType: typeof messageData.senderId,
+      receiverIdType: typeof messageData.receiverId,
+      senderId: messageData.senderId,
+      receiverId: messageData.receiverId
     });
 
     try {
-      // Save message to database via API
-      console.log('Making API call to /api/messages/send...');
-      const response = await axios.post('/api/messages/send', {
-        receiverId: selectedUser._id,
-        content: newMessage.trim()
-      });
+      // Send via socket (will save to Chats database)
+      socket.emit('send-message', messageData);
 
-      console.log('API response:', response.data);
+      // Add to local messages immediately for better UX
+      const tempMessage = {
+        _id: 'temp-' + Date.now(),
+        senderId: user._id || user.id,
+        senderName: senderName,
+        receiverId: selectedFriend.id,
+        receiverName: selectedFriend.name,
+        content: newMessage.trim(),
+        createdAt: new Date().toISOString(),
+        isRead: false
+      };
 
-      if (response.data.success) {
-        const savedMessage = response.data.message;
-        
-        // Add to local messages
-        setMessages(prev => [...prev, {
-          _id: savedMessage._id,
-          senderId: user._id,
-          senderName: `${user.firstName} ${user.lastName}`,
-          message: newMessage.trim(),
-          timestamp: savedMessage.createdAt,
-          isReceived: false
-        }]);
-
-        // Only emit via socket for real-time delivery to OTHER users
-        // Don't save again in socket handler since we already saved via API
-        if (socket) {
-          console.log('Emitting via socket for real-time delivery...');
-          socket.emit('send-message-realtime', {
-            _id: savedMessage._id,
-            senderId: user._id,
-            receiverId: selectedUser._id,
-            message: newMessage.trim(),
-            senderName: `${user.firstName} ${user.lastName}`,
-            timestamp: savedMessage.createdAt,
-            alreadySaved: true // Flag to indicate this is already saved
-          });
-        }
-
-        setNewMessage('');
-        console.log('Message sent successfully!');
-      } else {
-        console.error('API returned success=false:', response.data);
-        alert('Failed to send message: ' + (response.data.message || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      console.error('Error details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message
-      });
+      setMessages(prev => [...prev, tempMessage]);
+      setNewMessage('');
       
-      // Try fallback to socket-only if API fails
-      if (socket) {
-        console.log('API failed, trying socket-only fallback...');
-        socket.emit('send-message', {
-          senderId: user._id,
-          receiverId: selectedUser._id,
-          message: newMessage.trim(),
-          senderName: `${user.firstName} ${user.lastName}`
-        });
-        
-        // Add to local messages even if API failed
-        setMessages(prev => [...prev, {
-          _id: Date.now().toString(), // Temporary ID
-          senderId: user._id,
-          senderName: `${user.firstName} ${user.lastName}`,
-          message: newMessage.trim(),
-          timestamp: new Date(),
-          isReceived: false,
-          unsaved: true // Mark as unsaved
-        }]);
-        
-        setNewMessage('');
-        alert('Message sent via real-time only (not saved to database)');
-      } else {
-        alert('Failed to send message. Please try again.');
-      }
+    } catch (error) {
+      console.error('❌ Error sending message:', error);
+      alert('Failed to send message');
     }
   };
 
@@ -195,93 +322,169 @@ const Chat = () => {
     }
   };
 
+  const formatTime = (timestamp) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const getDisplayList = () => {
+    // Combine friends and conversations, prioritizing conversations
+    const conversationUserIds = new Set(conversations.map(conv => conv.otherUserId));
+    const friendsNotInConversations = friends.filter(friend => !conversationUserIds.has(friend.id));
+    
+    const conversationItems = conversations.map(conv => ({
+      id: conv.otherUserId,
+      name: conv.otherUserName,
+      lastMessage: conv.lastMessage.content,
+      lastMessageTime: conv.lastMessage.createdAt,
+      unreadCount: conv.unreadCount,
+      isConversation: true
+    }));
+
+    const friendItems = friendsNotInConversations.map(friend => ({
+      id: friend.id,
+      name: friend.name,
+      lastMessage: 'No messages yet',
+      lastMessageTime: null,
+      unreadCount: 0,
+      isConversation: false
+    }));
+
+    return [...conversationItems, ...friendItems];
+  };
+
   return (
     <div className="chat-container">
       <div className="chat-sidebar">
         <div className="chat-header">
-          <h3>Messages</h3>
-          <button 
-            onClick={testMessagesAPI}
-            style={{
-              padding: '5px 10px',
-              fontSize: '12px',
-              background: '#ff6b6b',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Test API
-          </button>
+          <h3>💬 Chats</h3>
+          <small>Powered by Chats Database</small>
         </div>
         
-        <div className="users-list">
-          {allUsers.map(chatUser => (
+        <div className="friends-list">
+          {getDisplayList().map((item) => (
             <div
-              key={chatUser._id}
-              className={`user-item ${selectedUser?._id === chatUser._id ? 'selected' : ''}`}
-              onClick={() => {
-                setSelectedUser(chatUser);
-                loadConversation(chatUser._id); // Load actual chat history
-              }}
+              key={item.id}
+              className={`friend-item ${selectedFriend?.id === item.id ? 'active' : ''}`}
+              onClick={() => selectFriend(item)}
             >
-              <div className="user-avatar">
-                {chatUser.firstName?.[0]}{chatUser.lastName?.[0]}
+              <div className="friend-info">
+                <div className="friend-name">
+                  {item.name}
+                  {item.unreadCount > 0 && (
+                    <span className="unread-badge">{item.unreadCount}</span>
+                  )}
+                </div>
+                <div className="friend-last-message">
+                  {item.lastMessage}
+                </div>
+                {item.lastMessageTime && (
+                  <div className="friend-last-time">
+                    {formatTime(item.lastMessageTime)}
+                  </div>
+                )}
               </div>
-              <div className="user-info">
-                <div className="user-name">
-                  {chatUser.firstName} {chatUser.lastName}
-                </div>
-                <div className="user-status">
-                  {onlineUsers.includes(chatUser._id) ? 'Online' : 'Offline'}
-                </div>
+              <div className="conversation-indicator">
+                {item.isConversation ? '💾' : '👤'}
               </div>
             </div>
           ))}
+          
+          {getDisplayList().length === 0 && (
+            <div className="no-friends">
+              <p>No users loaded yet</p>
+              <small>Registered users should appear here</small>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                <button 
+                  onClick={() => {
+                    console.log('🔄 Debug - Current state:');
+                    console.log('Friends array:', friends);
+                    console.log('Friends length:', friends.length);
+                    console.log('Conversations:', conversations);
+                    console.log('User:', user);
+                    console.log('User ID:', user?.id);
+                    loadFriends();
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#667eea',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔄 Reload Users
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    console.log('👥 Force loading all users...');
+                    console.log('Current user ID:', user?.id);
+                    loadAllUsers();
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  👥 Force Load Users
+                </button>
+                
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: 'rgba(255,255,255,0.8)', 
+                  marginTop: '10px',
+                  textAlign: 'center'
+                }}>
+                  Friends: {friends.length} | User: {user?.username || 'Not loaded'}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="chat-main">
-        {selectedUser ? (
+        {selectedFriend ? (
           <>
             <div className="chat-header">
-              <div className="chat-user-info">
-                <div className="user-avatar">
-                  {selectedUser.firstName?.[0]}{selectedUser.lastName?.[0]}
-                </div>
-                <div>
-                  <div className="user-name">
-                    {selectedUser.firstName} {selectedUser.lastName}
-                  </div>
-                  <div className="user-status">
-                    {onlineUsers.includes(selectedUser._id) ? 'Online' : 'Offline'}
-                  </div>
-                </div>
-              </div>
+              <h3>💬 {selectedFriend.name}</h3>
+              <small>Messages stored in Chats Database</small>
             </div>
 
             <div className="messages-container">
-              {messages.length === 0 ? (
-                <div className="no-messages">
-                  <p>Start a conversation with {selectedUser.firstName}!</p>
-                </div>
+              {isLoading ? (
+                <div className="loading">Loading messages from Chats DB...</div>
               ) : (
-                messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`message ${message.isReceived ? 'received' : 'sent'}`}
-                  >
-                    <div className="message-content">
-                      <div className="message-text">{message.message}</div>
-                      <div className="message-time">
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                <>
+                  {messages.map((message) => (
+                    <div
+                      key={message._id}
+                      className={`message ${message.senderId === (user._id || user.id) ? 'sent' : 'received'}`}
+                    >
+                      <div className="message-content">
+                        <div className="message-text">{message.content}</div>
+                        <div className="message-time">
+                          {formatTime(message.createdAt)}
+                          {message.senderId === (user._id || user.id) && (
+                            <span className={`message-status ${message.isRead ? 'read' : 'sent'}`}>
+                              {message.isRead ? '✓✓' : '✓'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                  <div ref={messagesEndRef} />
+                </>
               )}
-              <div ref={messagesEndRef} />
             </div>
 
             <div className="message-input-container">
@@ -289,28 +492,42 @@ const Chat = () => {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder={`Message ${selectedUser.firstName}...`}
-                rows="3"
+                placeholder={`Message ${selectedFriend.name}...`}
                 className="message-input"
+                rows="2"
               />
-              <button
-                onClick={sendMessage}
-                disabled={!newMessage.trim()}
+              <button 
+                onClick={sendMessage} 
                 className="send-button"
+                disabled={!newMessage.trim()}
               >
-                Send
+                Send to Chats DB 📤
               </button>
             </div>
           </>
         ) : (
           <div className="no-chat-selected">
-            <h3>Select a user to start chatting</h3>
-            <p>Choose someone from the sidebar to begin a conversation</p>
+            <h3>Select a friend to start chatting</h3>
+            <p>Your messages will be stored in the Chats database</p>
+            <div className="chat-features">
+              <div className="feature">
+                <span className="feature-icon">💾</span>
+                <span>Persistent Storage</span>
+              </div>
+              <div className="feature">
+                <span className="feature-icon">⚡</span>
+                <span>Real-time Messaging</span>
+              </div>
+              <div className="feature">
+                <span className="feature-icon">🔒</span>
+                <span>Secure & Private</span>
+              </div>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
-};
+}
 
 export default Chat; 
