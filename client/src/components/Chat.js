@@ -57,33 +57,135 @@ const Chat = () => {
     }
   };
 
+  const loadConversation = async (userId) => {
+    try {
+      console.log('Loading conversation with user:', userId);
+      const response = await axios.get(`/api/messages/conversation/${userId}`);
+      console.log('Conversation response:', response.data);
+      if (response.data.success) {
+        const formattedMessages = response.data.messages.map(msg => ({
+          _id: msg._id,
+          senderId: msg.sender._id,
+          senderName: `${msg.sender.firstName} ${msg.sender.lastName}`,
+          message: msg.content,
+          timestamp: msg.createdAt,
+          isReceived: msg.sender._id !== user._id
+        }));
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+      console.error('Error details:', error.response?.data);
+      setMessages([]); // Clear messages on error
+    }
+  };
+
+  const testMessagesAPI = async () => {
+    try {
+      console.log('Testing messages API...');
+      const response = await axios.get('/api/messages/test');
+      console.log('Messages API test response:', response.data);
+      alert('Messages API is working! Check console for details.');
+    } catch (error) {
+      console.error('Messages API test failed:', error);
+      console.error('Error details:', error.response?.data);
+      alert('Messages API test failed. Check console for details.');
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedUser || !socket) return;
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedUser) return;
 
-    const messageData = {
-      senderId: user._id,
+    console.log('Attempting to send message:', {
       receiverId: selectedUser._id,
-      message: newMessage.trim(),
-      senderName: `${user.firstName} ${user.lastName}`
-    };
+      content: newMessage.trim(),
+      user: user
+    });
 
-    // Emit message to server
-    socket.emit('send-message', messageData);
+    try {
+      // Save message to database via API
+      console.log('Making API call to /api/messages/send...');
+      const response = await axios.post('/api/messages/send', {
+        receiverId: selectedUser._id,
+        content: newMessage.trim()
+      });
 
-    // Add to local messages
-    setMessages(prev => [...prev, {
-      senderId: user._id,
-      senderName: messageData.senderName,
-      message: newMessage.trim(),
-      timestamp: new Date(),
-      isReceived: false
-    }]);
+      console.log('API response:', response.data);
 
-    setNewMessage('');
+      if (response.data.success) {
+        const savedMessage = response.data.message;
+        
+        // Add to local messages
+        setMessages(prev => [...prev, {
+          _id: savedMessage._id,
+          senderId: user._id,
+          senderName: `${user.firstName} ${user.lastName}`,
+          message: newMessage.trim(),
+          timestamp: savedMessage.createdAt,
+          isReceived: false
+        }]);
+
+        // Only emit via socket for real-time delivery to OTHER users
+        // Don't save again in socket handler since we already saved via API
+        if (socket) {
+          console.log('Emitting via socket for real-time delivery...');
+          socket.emit('send-message-realtime', {
+            _id: savedMessage._id,
+            senderId: user._id,
+            receiverId: selectedUser._id,
+            message: newMessage.trim(),
+            senderName: `${user.firstName} ${user.lastName}`,
+            timestamp: savedMessage.createdAt,
+            alreadySaved: true // Flag to indicate this is already saved
+          });
+        }
+
+        setNewMessage('');
+        console.log('Message sent successfully!');
+      } else {
+        console.error('API returned success=false:', response.data);
+        alert('Failed to send message: ' + (response.data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      // Try fallback to socket-only if API fails
+      if (socket) {
+        console.log('API failed, trying socket-only fallback...');
+        socket.emit('send-message', {
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          message: newMessage.trim(),
+          senderName: `${user.firstName} ${user.lastName}`
+        });
+        
+        // Add to local messages even if API failed
+        setMessages(prev => [...prev, {
+          _id: Date.now().toString(), // Temporary ID
+          senderId: user._id,
+          senderName: `${user.firstName} ${user.lastName}`,
+          message: newMessage.trim(),
+          timestamp: new Date(),
+          isReceived: false,
+          unsaved: true // Mark as unsaved
+        }]);
+        
+        setNewMessage('');
+        alert('Message sent via real-time only (not saved to database)');
+      } else {
+        alert('Failed to send message. Please try again.');
+      }
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -98,6 +200,20 @@ const Chat = () => {
       <div className="chat-sidebar">
         <div className="chat-header">
           <h3>Messages</h3>
+          <button 
+            onClick={testMessagesAPI}
+            style={{
+              padding: '5px 10px',
+              fontSize: '12px',
+              background: '#ff6b6b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Test API
+          </button>
         </div>
         
         <div className="users-list">
@@ -107,7 +223,7 @@ const Chat = () => {
               className={`user-item ${selectedUser?._id === chatUser._id ? 'selected' : ''}`}
               onClick={() => {
                 setSelectedUser(chatUser);
-                setMessages([]); // Clear messages when switching users (in real app, would load chat history)
+                loadConversation(chatUser._id); // Load actual chat history
               }}
             >
               <div className="user-avatar">

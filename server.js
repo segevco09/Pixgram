@@ -46,6 +46,14 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   console.log('Headers:', req.headers.authorization ? 'Auth header present' : 'No auth header');
+  
+  // Special logging for messages API
+  if (req.url.startsWith('/api/messages')) {
+    console.log('🔔 MESSAGES API REQUEST:', req.method, req.url);
+    console.log('🔔 Request body:', req.body);
+    console.log('🔔 Auth header:', req.headers.authorization ? 'Present' : 'Missing');
+  }
+  
   next();
 });
 
@@ -54,6 +62,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/posts', require('./routes/posts'));
 app.use('/api/groups', require('./routes/groups'));
 app.use('/api/friends', require('./routes/friends'));
+app.use('/api/messages', require('./routes/messages'));
 app.use('/api/test', require('./routes/test'));
 
 // Serve static files from React app (only if build directory exists)
@@ -80,6 +89,7 @@ if (fs.existsSync(buildPath)) {
         '/api/posts/*',
         '/api/friends/*',
         '/api/groups/*',
+        '/api/messages/*',
         '/api/test/*'
       ]
     });
@@ -96,19 +106,64 @@ io.on('connection', (socket) => {
     console.log(`User ${userId} joined their room`);
   });
 
-  // Handle private messages
-  socket.on('send-message', (data) => {
+  // Handle private messages (legacy - saves to database)
+  socket.on('send-message', async (data) => {
     const { senderId, receiverId, message, senderName } = data;
     
-    // Emit to receiver's room
+    try {
+      // Save message to database
+      const Message = require('./models/Message');
+      const newMessage = new Message({
+        sender: senderId,
+        receiver: receiverId,
+        content: message
+      });
+      
+      await newMessage.save();
+      await newMessage.populate('sender', 'firstName lastName username profilePicture');
+      await newMessage.populate('receiver', 'firstName lastName username profilePicture');
+      
+      // Emit to receiver's room with saved message data
+      socket.to(`user-${receiverId}`).emit('new-message', {
+        _id: newMessage._id,
+        senderId,
+        senderName,
+        message,
+        timestamp: newMessage.createdAt,
+        isRead: false
+      });
+      
+      console.log(`Message saved and sent from ${senderName} to user ${receiverId}: ${message}`);
+    } catch (error) {
+      console.error('Error saving message:', error);
+      
+      // Still emit the message even if save fails (fallback)
+      socket.to(`user-${receiverId}`).emit('new-message', {
+        senderId,
+        senderName,
+        message,
+        timestamp: new Date(),
+        isRead: false,
+        error: 'Message not saved to database'
+      });
+    }
+  });
+
+  // Handle real-time message delivery (already saved via API)
+  socket.on('send-message-realtime', (data) => {
+    const { _id, senderId, receiverId, message, senderName, timestamp, alreadySaved } = data;
+    
+    console.log(`Real-time delivery from ${senderName} to user ${receiverId}: ${message} (already saved: ${alreadySaved})`);
+    
+    // Just emit to receiver - don't save to database again
     socket.to(`user-${receiverId}`).emit('new-message', {
+      _id,
       senderId,
       senderName,
       message,
-      timestamp: new Date()
+      timestamp,
+      isRead: false
     });
-    
-    console.log(`Message from ${senderName} to user ${receiverId}: ${message}`);
   });
 
   // Handle group messages

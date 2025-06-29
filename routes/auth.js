@@ -284,4 +284,26 @@ router.get('/users', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/users
+// @desc    Get all users for chat
+// @access  Private
+router.get('/users', auth, async (req, res) => {
+  try {
+    const users = await User.find({ isActive: true })
+      .select('firstName lastName username profilePicture')
+      .sort({ firstName: 1 });
+
+    res.json({
+      success: true,
+      users
+    });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 module.exports = router; 
