@@ -144,8 +144,8 @@ io.on('connection', (socket) => {
         'text'
       );
       
-      // Emit to receiver's room with saved message data
-      socket.to(`user-${receiverId}`).emit('new-message', {
+      // Prepare message data
+      const messageData = {
         _id: savedMessage._id,
         senderId: savedMessage.senderId,
         senderName: savedMessage.senderName,
@@ -154,7 +154,13 @@ io.on('connection', (socket) => {
         message: savedMessage.content,
         timestamp: savedMessage.createdAt,
         isRead: savedMessage.isRead
-      });
+      };
+
+      // Emit to receiver's room
+      socket.to(`user-${receiverId}`).emit('new-message', messageData);
+      
+      // Also emit to sender's room for real-time update
+      socket.to(`user-${senderId}`).emit('new-message', messageData);
       
       // Confirm to sender
       socket.emit('message-confirmed', {

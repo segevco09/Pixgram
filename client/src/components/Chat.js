@@ -32,20 +32,37 @@ function Chat() {
       // Listen for new messages from Chats database
       newSocket.on('new-message', (messageData) => {
         console.log('📨 Received new message via socket:', messageData);
+        console.log('📨 Current user ID:', user._id || user.id);
+        console.log('📨 Selected friend ID:', selectedFriend?.id);
+        console.log('📨 Message senderId:', messageData.senderId);
+        console.log('📨 Message receiverId:', messageData.receiverId);
         
-        // Add message to current conversation if it's the active chat
-        if (selectedFriend && 
-            (messageData.senderId === selectedFriend.id || messageData.receiverId === selectedFriend.id)) {
-          setMessages(prev => [...prev, {
-            _id: messageData._id,
-            senderId: messageData.senderId,
-            senderName: messageData.senderName,
-            receiverId: messageData.receiverId,
-            receiverName: messageData.receiverName,
-            content: messageData.message,
-            createdAt: messageData.timestamp,
-            isRead: messageData.isRead
-          }]);
+        // Add message to current conversation if it's related to the current user
+        const currentUserId = user._id || user.id;
+        const isForCurrentUser = messageData.receiverId === currentUserId || messageData.senderId === currentUserId;
+        
+        if (isForCurrentUser) {
+          // Update the messages state if this is the active conversation
+          setMessages(prev => {
+            // Check if message already exists (to prevent duplicates)
+            const messageExists = prev.some(msg => msg._id === messageData._id);
+            if (messageExists) {
+              console.log('📨 Message already exists, skipping');
+              return prev;
+            }
+            
+            console.log('📨 Adding new message to conversation');
+            return [...prev, {
+              _id: messageData._id,
+              senderId: messageData.senderId,
+              senderName: messageData.senderName,
+              receiverId: messageData.receiverId,
+              receiverName: messageData.receiverName,
+              content: messageData.message,
+              createdAt: messageData.timestamp,
+              isRead: messageData.isRead
+            }];
+          });
         }
 
         // Update conversations list
@@ -68,7 +85,7 @@ function Chat() {
         newSocket.disconnect();
       };
     }
-  }, [user, selectedFriend]);
+  }, [user]);
 
   // Load friends list
   useEffect(() => {
@@ -294,20 +311,11 @@ function Chat() {
       // Send via socket (will save to Chats database)
       socket.emit('send-message', messageData);
 
-      // Add to local messages immediately for better UX
-      const tempMessage = {
-        _id: 'temp-' + Date.now(),
-        senderId: user._id || user.id,
-        senderName: senderName,
-        receiverId: selectedFriend.id,
-        receiverName: selectedFriend.name,
-        content: newMessage.trim(),
-        createdAt: new Date().toISOString(),
-        isRead: false
-      };
-
-      setMessages(prev => [...prev, tempMessage]);
+      // Clear the input immediately
       setNewMessage('');
+      
+      // Don't add temporary message - wait for real-time update via socket
+      console.log('📤 Message sent, waiting for real-time update...');
       
     } catch (error) {
       console.error('❌ Error sending message:', error);
