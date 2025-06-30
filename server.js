@@ -98,12 +98,21 @@ if (fs.existsSync(buildPath)) {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  console.log('🔌 New socket connection established:', socket.id);
+  console.log('🔌 Socket handshake:', socket.handshake.address);
 
   // Join user to their personal room
   socket.on('join-user-room', (userId) => {
-    socket.join(`user-${userId}`);
-    console.log(`User ${userId} joined their room`);
+    const roomName = `user-${userId}`;
+    socket.join(roomName);
+    console.log(`🏠 User ${userId} joined room: ${roomName} (Socket: ${socket.id})`);
+    
+    // Confirm room joining
+    socket.emit('room-joined', { 
+      userId, 
+      roomName,
+      message: `Successfully joined room ${roomName}` 
+    });
   });
 
   // Handle private messages (saves to Chats database)
@@ -144,7 +153,7 @@ io.on('connection', (socket) => {
         'text'
       );
       
-      // Prepare message data
+      // Prepare message data with consistent structure
       const messageData = {
         _id: savedMessage._id,
         senderId: savedMessage.senderId,
@@ -152,38 +161,39 @@ io.on('connection', (socket) => {
         receiverId: savedMessage.receiverId,
         receiverName: savedMessage.receiverName,
         message: savedMessage.content,
+        content: savedMessage.content, // Add both for compatibility
         timestamp: savedMessage.createdAt,
+        createdAt: savedMessage.createdAt, // Add both for compatibility
         isRead: savedMessage.isRead
       };
 
-      // Emit to receiver's room
-      socket.to(`user-${receiverId}`).emit('new-message', messageData);
+      console.log(`📤 Broadcasting message to receiver room: user-${receiverId}`);
+      console.log(`📤 Broadcasting message to sender room: user-${senderId}`);
+
+      // Emit to receiver's room (other users connected as this receiver)
+      io.to(`user-${receiverId}`).emit('new-message', messageData);
       
-      // Also emit to sender's room for real-time update
+      // Emit to sender's socket directly (current socket that sent the message)
+      socket.emit('new-message', messageData);
+      
+      // Also broadcast to sender's room (in case sender has multiple tabs open)
       socket.to(`user-${senderId}`).emit('new-message', messageData);
       
-      // Confirm to sender
+      // Confirm to sender with additional details
       socket.emit('message-confirmed', {
         _id: savedMessage._id,
-        timestamp: savedMessage.createdAt
+        timestamp: savedMessage.createdAt,
+        success: true
       });
       
-      console.log(`✅ Message saved to Chats DB and sent from ${senderName} to ${finalReceiverName}: ${message}`);
+      console.log(`✅ Message saved to Chats DB and broadcast from ${senderName} to ${finalReceiverName}: ${message}`);
     } catch (error) {
       console.error('❌ Error saving message to Chats DB:', error);
       
-      // Still emit the message even if save fails (fallback)
-      socket.to(`user-${receiverId}`).emit('new-message', {
-        senderId,
-        senderName,
-        message,
-        timestamp: new Date(),
-        isRead: false,
-        error: 'Message not saved to Chats database'
-      });
-      
+      // Send error to sender
       socket.emit('message-error', {
-        error: 'Failed to save message to database'
+        error: 'Failed to save message to database',
+        details: error.message
       });
     }
   });

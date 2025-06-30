@@ -13,60 +13,136 @@ function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [conversations, setConversations] = useState([]);
   const messagesEndRef = useRef(null);
+  const selectedFriendRef = useRef(null);
 
   // Initialize socket connection
   useEffect(() => {
     if (user) {
       console.log('🔌 Initializing socket connection for user:', user.id);
-      const newSocket = io('http://localhost:5000');
+      const newSocket = io('http://localhost:5000', {
+        autoConnect: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+        timeout: 20000,
+        forceNew: true
+      });
       
       newSocket.on('connect', () => {
-        console.log('✅ Socket connected:', newSocket.id);
-        newSocket.emit('join-user-room', user._id || user.id);
+        console.log('✅ Socket connected successfully:', newSocket.id);
+        const userId = user._id || user.id;
+        console.log('🏠 Joining user room:', `user-${userId}`);
+        newSocket.emit('join-user-room', userId);
       });
 
-      newSocket.on('disconnect', () => {
-        console.log('❌ Socket disconnected');
+      newSocket.on('disconnect', (reason) => {
+        console.log('❌ Socket disconnected:', reason);
+      });
+
+      newSocket.on('connect_error', (error) => {
+        console.error('❌ Socket connection error:', error);
+      });
+
+      newSocket.on('reconnect', (attemptNumber) => {
+        console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+      });
+
+      newSocket.on('reconnect_error', (error) => {
+        console.error('❌ Socket reconnection error:', error);
+      });
+
+      // Listen for room joining confirmation
+      newSocket.on('room-joined', (data) => {
+        console.log('🏠✅ Successfully joined room:', data);
       });
 
       // Listen for new messages from Chats database
       newSocket.on('new-message', (messageData) => {
         console.log('📨 Received new message via socket:', messageData);
         console.log('📨 Current user ID:', user._id || user.id);
-        console.log('📨 Selected friend ID:', selectedFriend?.id);
+        console.log('📨 Selected friend ID:', selectedFriendRef.current?.id);
         console.log('📨 Message senderId:', messageData.senderId);
         console.log('📨 Message receiverId:', messageData.receiverId);
         
         // Add message to current conversation if it's related to the current user
-        const currentUserId = user._id || user.id;
-        const isForCurrentUser = messageData.receiverId === currentUserId || messageData.senderId === currentUserId;
+        const currentUserId = (user._id || user.id).toString();
+        const messageSenderId = messageData.senderId.toString();
+        const messageReceiverId = messageData.receiverId.toString();
+        
+        const isForCurrentUser = messageReceiverId === currentUserId || messageSenderId === currentUserId;
         
         if (isForCurrentUser) {
-          // Update the messages state if this is the active conversation
-          setMessages(prev => {
-            // Check if message already exists (to prevent duplicates)
-            const messageExists = prev.some(msg => msg._id === messageData._id);
-            if (messageExists) {
-              console.log('📨 Message already exists, skipping');
-              return prev;
-            }
-            
-            console.log('📨 Adding new message to conversation');
-            return [...prev, {
-              _id: messageData._id,
-              senderId: messageData.senderId,
-              senderName: messageData.senderName,
-              receiverId: messageData.receiverId,
-              receiverName: messageData.receiverName,
-              content: messageData.message,
-              createdAt: messageData.timestamp,
-              isRead: messageData.isRead
-            }];
+          console.log('📨 Message is for current user, processing...');
+          
+          // Check if this message belongs to the currently active conversation
+          const currentSelectedFriend = selectedFriendRef.current;
+          const selectedFriendId = currentSelectedFriend?.id?.toString();
+          const isForActiveConversation = selectedFriendId && (
+            (messageSenderId === currentUserId && messageReceiverId === selectedFriendId) ||
+            (messageSenderId === selectedFriendId && messageReceiverId === currentUserId)
+          );
+          
+          console.log('📨 Is for active conversation?', isForActiveConversation, {
+            selectedFriendId,
+            messageSenderId,
+            messageReceiverId,
+            currentUserId,
+            hasSelectedFriend: !!currentSelectedFriend
           });
-        }
+          
+          // Always update messages state, but only if it's for the active conversation OR no conversation is selected
+          if (isForActiveConversation || !currentSelectedFriend) {
+            setMessages(prev => {
+              // Check if message already exists (to prevent duplicates)
+              const messageExists = prev.some(msg => 
+                msg._id && messageData._id && msg._id.toString() === messageData._id.toString()
+              );
+              
+              if (messageExists) {
+                console.log('📨 Message already exists, skipping duplicate');
+                return prev;
+              }
+              
+              console.log('📨 Adding new message to active conversation');
+              const newMessage = {
+                _id: messageData._id,
+                senderId: messageData.senderId,
+                senderName: messageData.senderName,
+                receiverId: messageData.receiverId,
+                receiverName: messageData.receiverName,
+                content: messageData.message || messageData.content,
+                createdAt: messageData.timestamp || messageData.createdAt,
+                isRead: messageData.isRead
+              };
+              
+              // Check if this is replacing an optimistic message (same content, same sender)
+              const optimisticIndex = prev.findIndex(msg => 
+                msg.isOptimistic && 
+                msg.senderId === newMessage.senderId && 
+                msg.content === newMessage.content
+              );
+              
+              if (optimisticIndex !== -1) {
+                console.log('📨 Replacing optimistic message with real message');
+                const updatedMessages = [...prev];
+                updatedMessages[optimisticIndex] = newMessage; // Replace optimistic with real
+                return updatedMessages;
+              } else {
+                console.log('📨 Adding new message (no optimistic to replace)');
+                return [...prev, newMessage];
+              }
+            });
+          } else {
+            console.log('📨 Message not for active conversation, only updating conversations list');
+          }
 
-        // Update conversations list
-        loadConversations();
+          // Always update conversations list to reflect new message
+          setTimeout(() => {
+            loadConversations();
+          }, 100);
+        } else {
+          console.log('📨 Message not for current user, ignoring');
+        }
       });
 
       newSocket.on('message-confirmed', (data) => {
@@ -114,6 +190,11 @@ function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Keep selectedFriendRef in sync with selectedFriend state
+  useEffect(() => {
+    selectedFriendRef.current = selectedFriend;
+  }, [selectedFriend]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -274,17 +355,40 @@ function Chat() {
   const selectFriend = (friend) => {
     console.log('👤 Selected friend:', friend);
     setSelectedFriend(friend);
+    selectedFriendRef.current = friend; // Update ref as well
     loadConversation(friend.id);
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedFriend || !socket) return;
+    if (!newMessage.trim()) {
+      console.warn('⚠️ Empty message, not sending');
+      return;
+    }
+    
+    if (!selectedFriend) {
+      console.warn('⚠️ No friend selected, not sending');
+      return;
+    }
+    
+    if (!socket) {
+      console.error('❌ Socket not connected, cannot send message');
+      alert('Not connected to chat server. Please refresh the page.');
+      return;
+    }
+
+    if (!socket.connected) {
+      console.error('❌ Socket disconnected, cannot send message');
+      alert('Disconnected from chat server. Please refresh the page.');
+      return;
+    }
 
     console.log('🔍 DEBUG - User object:', user);
     console.log('🔍 DEBUG - User ID:', user.id);
     console.log('🔍 DEBUG - User _ID:', user._id);
     console.log('🔍 DEBUG - Selected friend:', selectedFriend);
     console.log('🔍 DEBUG - Selected friend ID:', selectedFriend.id);
+    console.log('🔍 DEBUG - Socket connected:', socket.connected);
+    console.log('🔍 DEBUG - Socket ID:', socket.id);
 
     // Construct full name from firstName and lastName
     const senderName = user.firstName && user.lastName 
@@ -304,22 +408,42 @@ function Chat() {
       senderIdType: typeof messageData.senderId,
       receiverIdType: typeof messageData.receiverId,
       senderId: messageData.senderId,
-      receiverId: messageData.receiverId
+      receiverId: messageData.receiverId,
+      socketConnected: socket.connected
     });
 
     try {
+      // Add optimistic update - show message immediately
+      const optimisticMessage = {
+        _id: `temp_${Date.now()}`, // Temporary ID
+        senderId: messageData.senderId,
+        senderName: messageData.senderName,
+        receiverId: messageData.receiverId,
+        receiverName: messageData.receiverName,
+        content: messageData.message,
+        createdAt: new Date(),
+        isRead: false,
+        isOptimistic: true // Mark as optimistic update
+      };
+
+      console.log('📤 Adding optimistic message for immediate feedback');
+      setMessages(prev => [...prev, optimisticMessage]);
+
       // Send via socket (will save to Chats database)
+      console.log('📡 Emitting send-message event...');
       socket.emit('send-message', messageData);
 
       // Clear the input immediately
       setNewMessage('');
       
-      // Don't add temporary message - wait for real-time update via socket
-      console.log('📤 Message sent, waiting for real-time update...');
+      console.log('📤 Message sent successfully, waiting for real-time confirmation...');
       
     } catch (error) {
       console.error('❌ Error sending message:', error);
-      alert('Failed to send message');
+      alert(`Failed to send message: ${error.message}`);
+      
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(msg => !msg.isOptimistic || msg.content !== messageData.message));
     }
   };
 
@@ -475,15 +599,15 @@ function Chat() {
                   {messages.map((message) => (
                     <div
                       key={message._id}
-                      className={`message ${message.senderId === (user._id || user.id) ? 'sent' : 'received'}`}
+                      className={`message ${message.senderId === (user._id || user.id) ? 'sent' : 'received'} ${message.isOptimistic ? 'optimistic' : ''}`}
                     >
                       <div className="message-content">
                         <div className="message-text">{message.content}</div>
                         <div className="message-time">
                           {formatTime(message.createdAt)}
                           {message.senderId === (user._id || user.id) && (
-                            <span className={`message-status ${message.isRead ? 'read' : 'sent'}`}>
-                              {message.isRead ? '✓✓' : '✓'}
+                            <span className={`message-status ${message.isOptimistic ? 'sending' : message.isRead ? 'read' : 'sent'}`}>
+                              {message.isOptimistic ? '⏳' : message.isRead ? '✓✓' : '✓'}
                             </span>
                           )}
                         </div>
