@@ -18,6 +18,9 @@ const io = socketIo(server, {
   }
 });
 
+// Make io instance available to routes
+app.set('io', io);
+
 // Middleware
 app.use(cors());
 app.use(express.json());

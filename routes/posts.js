@@ -383,4 +383,41 @@ router.delete('/:postId/comments/:commentId', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/posts/user/:userId
+// @desc    Get posts by specific user
+// @access  Private
+router.get('/user/:userId', auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Get posts by the specified user
+    const posts = await Post.find({ 
+      author: userId,
+      privacy: { $in: ['public', 'friends'] } // Only show public and friends posts
+    })
+      .populate('author', 'username firstName lastName profilePicture')
+      .populate('comments.user', 'username firstName lastName profilePicture')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      success: true,
+      posts,
+      page,
+      totalPosts: posts.length,
+      hasMore: posts.length === limit
+    });
+  } catch (error) {
+    console.error('Get user posts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 module.exports = router; 

@@ -4,6 +4,7 @@ import Feed from './Feed';
 import Groups from './Groups';
 import Chat from './Chat';
 import Friends from './Friends';
+import Profile from './Profile';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -24,6 +25,8 @@ const Dashboard = () => {
         return <Friends />;
       case 'chat':
         return <Chat />;
+      case 'profile':
+        return <Profile />;
       default:
         return <Feed />;
     }
@@ -58,6 +61,12 @@ const Dashboard = () => {
               onClick={() => setActiveTab('chat')}
             >
               Chat
+            </button>
+            <button
+              className={`nav-button ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => setActiveTab('profile')}
+            >
+              Profile
             </button>
           </nav>
           <div className="user-info">

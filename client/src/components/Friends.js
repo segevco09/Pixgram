@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import './Friends.css';
 
 const Friends = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('friends');
   const [friends, setFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
@@ -179,6 +181,7 @@ const Friends = () => {
                 <UserCard
                   key={friend._id}
                   user={friend}
+                  onUserClick={() => navigate(`/user/${friend._id}`)}
                   actions={
                     <button
                       className="remove-friend-btn"
@@ -205,6 +208,7 @@ const Friends = () => {
                 <UserCard
                   key={request.from._id}
                   user={request.from}
+                  onUserClick={() => navigate(`/user/${request.from._id}`)}
                   subtitle={`Sent ${new Date(request.createdAt).toLocaleDateString()}`}
                   actions={
                     <div className="request-actions">
@@ -268,6 +272,7 @@ const Friends = () => {
                   <UserCard
                     key={searchUser._id}
                     user={searchUser}
+                    onUserClick={() => navigate(`/user/${searchUser._id}`)}
                     actions={
                       searchUser.isFriend ? (
                         <span className="friend-status">Already Friends</span>
@@ -334,14 +339,36 @@ const Friends = () => {
   );
 };
 
-const UserCard = ({ user, subtitle, actions }) => {
+const UserCard = ({ user, subtitle, actions, onUserClick }) => {
+  const getInitials = (firstName, lastName) => {
+    const first = firstName?.charAt(0)?.toUpperCase() || '';
+    const last = lastName?.charAt(0)?.toUpperCase() || '';
+    return first + last;
+  };
+
   return (
     <div className="user-card">
-      <div className="user-avatar">
-        {user.firstName?.[0]}{user.lastName?.[0]}
+      <div className="user-avatar" onClick={onUserClick}>
+        {user.profilePicture ? (
+          <img 
+            src={user.profilePicture} 
+            alt="Profile" 
+            className="avatar-image"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextElementSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div 
+          className={`avatar-initials ${user.profilePicture ? 'hidden' : ''}`}
+          style={{ display: user.profilePicture ? 'none' : 'flex' }}
+        >
+          {getInitials(user.firstName, user.lastName)}
+        </div>
       </div>
       <div className="user-info">
-        <div className="user-name">
+        <div className="user-name clickable" onClick={onUserClick}>
           {user.firstName} {user.lastName}
         </div>
         <div className="user-username">@{user.username}</div>

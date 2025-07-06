@@ -75,6 +75,18 @@
   gap: 8px;
 }
 
+.friend-name.clickable {
+  cursor: pointer;
+  transition: color 0.3s ease;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.friend-name.clickable:hover {
+  color: #54a0ff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .friend-last-message {
   font-size: 0.85em;
   opacity: 0.8;
@@ -215,30 +227,7 @@
   justify-content: space-between;
 }
 
-.message-status {
-  margin-left: 5px;
-  font-size: 0.8em;
-}
 
-.message-status.read {
-  color: #4CAF50;
-}
-
-.message-status.sent {
-  color: #fff;
-  opacity: 0.7;
-}
-
-.message-status.sending {
-  color: #fff;
-  opacity: 0.6;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
 
 /* Optimistic message styling */
 .message.optimistic {
@@ -259,6 +248,109 @@
   background: rgba(255, 255, 255, 0.1);
   border-radius: inherit;
   pointer-events: none;
+}
+
+/* Context Menu */
+.message-context-menu {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e0e0e0;
+  min-width: 150px;
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.context-menu-item {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 14px;
+  color: #333;
+}
+
+.context-menu-item:hover {
+  background: #f5f5f5;
+}
+
+.context-menu-item:active {
+  background: #e0e0e0;
+}
+
+.context-menu-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+/* Message Edit Styling */
+.message-edit-container {
+  width: 100%;
+}
+
+.message-edit-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.95);
+  margin-bottom: 8px;
+}
+
+.message-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.edit-save-btn, .edit-cancel-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-save-btn {
+  background: #4CAF50;
+  color: white;
+}
+
+.edit-save-btn:hover {
+  background: #45a049;
+}
+
+.edit-cancel-btn {
+  background: #f44336;
+  color: white;
+}
+
+.edit-cancel-btn:hover {
+  background: #da190b;
+}
+
+.edited-indicator {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.message.received .edited-indicator {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* Make messages clickable */
+.message.sent {
+  cursor: context-menu;
 }
 
 /* Message Input */

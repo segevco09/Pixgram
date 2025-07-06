@@ -1,9 +1,47 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
+
+// Multer configuration for profile picture uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../uploads/profiles');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `profile-${req.user.id}-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Accept only image files
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Not an image! Please upload only images.'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
@@ -263,23 +301,47 @@ router.get('/fix-users', async (req, res) => {
   }
 });
 
-// @route   GET /api/auth/users
-// @desc    Get all users for chat
+// @route   GET /api/auth/user/:userId
+// @desc    Get user by ID for profile viewing
 // @access  Private
-router.get('/users', auth, async (req, res) => {
+router.get('/user/:userId', auth, async (req, res) => {
   try {
-    const users = await User.find({}, 'firstName lastName username')
-      .sort({ firstName: 1 });
+    const { userId } = req.params;
     
+    console.log('=== GET /api/auth/user/:userId DEBUG ===');
+    console.log('Requested userId:', userId);
+    console.log('userId type:', typeof userId);
+    console.log('userId length:', userId.length);
+    console.log('Current user making request:', req.user.id);
+
+    const user = await User.findById(userId)
+      .select('-password')
+      .lean();
+
+    console.log('Database query result:', user ? 'User found' : 'User not found');
+    if (user) {
+      console.log('Found user:', { id: user._id, username: user.username, firstName: user.firstName, lastName: user.lastName });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
     res.json({
       success: true,
-      users
+      user
     });
+
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error('Get user by ID error:', error);
+    console.log('Error details:', error.message);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Error fetching user',
+      error: error.message
     });
   }
 });
@@ -302,6 +364,98 @@ router.get('/users', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+// @route   PUT /api/auth/profile-picture
+// @desc    Update user profile picture
+// @access  Private
+router.put('/profile-picture', auth, upload.single('profilePicture'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    // Delete old profile picture if it exists
+    const user = await User.findById(req.user.id);
+    if (user.profilePicture) {
+      const oldImagePath = path.join(__dirname, '../uploads/profiles', path.basename(user.profilePicture));
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
+      }
+    }
+
+    // Update user with new profile picture URL
+    const profilePictureUrl = `/uploads/profiles/${req.file.filename}`;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { profilePicture: profilePictureUrl },
+      { new: true }
+    ).select('-password');
+
+    res.json({
+      success: true,
+      message: 'Profile picture updated successfully',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error('Profile picture update error:', error);
+    
+    // Clean up uploaded file if there was an error
+    if (req.file) {
+      const filePath = req.file.path;
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Error updating profile picture',
+      error: error.message
+    });
+  }
+});
+
+// @route   PUT /api/auth/bio
+// @desc    Update user bio
+// @access  Private
+router.put('/bio', auth, async (req, res) => {
+  try {
+    const { bio } = req.body;
+
+    // Validate bio length
+    if (bio && bio.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bio cannot exceed 500 characters'
+      });
+    }
+
+    // Update user bio
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { bio: bio || '' },
+      { new: true }
+    ).select('-password');
+
+    res.json({
+      success: true,
+      message: 'Bio updated successfully',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error('Bio update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating bio',
+      error: error.message
     });
   }
 });

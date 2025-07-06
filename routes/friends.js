@@ -384,4 +384,93 @@ router.get('/test-search', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/friends/stats/:userId
+// @desc    Get follower/following statistics for a specific user
+// @access  Private
+router.get('/stats/:userId', auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log('=== GET /api/friends/stats/:userId DEBUG ===');
+    console.log('Requested userId:', userId);
+    console.log('Current user making request:', req.user.id);
+
+    // Get the target user
+    const targetUser = await User.findById(userId);
+    
+    if (!targetUser) {
+      console.log('Target user not found in database');
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    console.log('Target user found:', targetUser.username);
+
+    // Following count is the number of friends the target user has
+    const followingCount = targetUser.friends.length;
+
+    // Follower count is the number of users who have the target user as a friend
+    const followerCount = await User.countDocuments({
+      friends: userId
+    });
+
+    console.log('Stats calculated:', { followerCount, followingCount });
+
+    res.json({
+      success: true,
+      followerCount,
+      followingCount,
+      totalConnections: followerCount + followingCount
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
+// @route   GET /api/friends/stats
+// @desc    Get follower/following statistics for current user
+// @access  Private
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const currentUserId = req.user._id;
+
+    // Get current user with friends populated
+    const currentUser = await User.findById(currentUserId);
+    
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Following count is the number of friends the current user has
+    const followingCount = currentUser.friends.length;
+
+    // Follower count is the number of users who have the current user as a friend
+    const followerCount = await User.countDocuments({
+      friends: currentUserId
+    });
+
+    res.json({
+      success: true,
+      followerCount,
+      followingCount,
+      totalConnections: followerCount + followingCount
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+});
+
 module.exports = router; 

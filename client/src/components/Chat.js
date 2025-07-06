@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import './Chat.css';
 
 function Chat() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [friends, setFriends] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -14,6 +16,9 @@ function Chat() {
   const [conversations, setConversations] = useState([]);
   const messagesEndRef = useRef(null);
   const selectedFriendRef = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [editText, setEditText] = useState('');
 
   // Initialize socket connection
   useEffect(() => {
@@ -154,6 +159,28 @@ function Chat() {
         alert('Failed to send message: ' + error.error);
       });
 
+      // Listen for message edits
+      newSocket.on('message-edited', (data) => {
+        console.log('✏️ Received message edit:', data);
+        const { messageId, newContent, editedAt } = data;
+        
+        setMessages(prev => prev.map(msg => 
+          msg._id === messageId 
+            ? { ...msg, content: newContent, editedAt: editedAt }
+            : msg
+        ));
+      });
+
+      // Listen for message deletions
+      newSocket.on('message-deleted', (data) => {
+        console.log('🗑️ Received message deletion:', data);
+        const { messageId } = data;
+        
+        setMessages(prev => prev.filter(msg => msg._id !== messageId));
+      });
+
+
+
       setSocket(newSocket);
 
       return () => {
@@ -195,6 +222,18 @@ function Chat() {
   useEffect(() => {
     selectedFriendRef.current = selectedFriend;
   }, [selectedFriend]);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setContextMenu(null);
+    };
+
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -253,11 +292,36 @@ function Chat() {
         
         if (data.users && data.users.length > 0) {
           // Convert users to friends format and exclude current user
+          const currentUserId = (user?._id || user?.id)?.toString();
+          console.log('🔍 Current user for filtering:', {
+            userId: currentUserId,
+            userObject: user,
+            userIdType: typeof currentUserId
+          });
+          
           const usersAsFriends = data.users
             .filter(u => {
-              const currentUserId = user?._id || user?.id;
-              const isCurrentUser = u._id === currentUserId;
-              console.log(`🔍 User ${u.username} (${u._id}) - Current user: ${isCurrentUser} (comparing with ${currentUserId})`);
+              const userIdString = u._id?.toString();
+              const isCurrentUserById = userIdString === currentUserId;
+              
+              // Additional safety checks in case ID comparison fails
+              const isCurrentUserByUsername = u.username === user?.username;
+              const isCurrentUserByEmail = u.email && user?.email && u.email === user.email;
+              
+              const isCurrentUser = isCurrentUserById || isCurrentUserByUsername || isCurrentUserByEmail;
+              
+              console.log(`🔍 User ${u.username} (${userIdString}) - Current user: ${isCurrentUser} (comparing with ${currentUserId})`);
+              console.log(`🔍 Comparison details:`, {
+                userIdString,
+                currentUserId,
+                isCurrentUserById,
+                isCurrentUserByUsername,
+                isCurrentUserByEmail,
+                finalResult: isCurrentUser,
+                userIdType: typeof userIdString,
+                currentUserIdType: typeof currentUserId
+              });
+              
               return !isCurrentUser;
             })
             .map(u => ({
@@ -357,6 +421,7 @@ function Chat() {
     setSelectedFriend(friend);
     selectedFriendRef.current = friend; // Update ref as well
     loadConversation(friend.id);
+    // Note: Messages are automatically marked as read in loadConversation server endpoint
   };
 
   const sendMessage = async () => {
@@ -454,6 +519,169 @@ function Chat() {
     }
   };
 
+  // Handle long press / right click on messages
+  const handleMessageLongPress = (message, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Only show context menu for messages sent by current user
+    const currentUserId = (user._id || user.id).toString();
+    if (message.senderId.toString() !== currentUserId) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const clickX = event.clientX || rect.right;
+    const clickY = event.clientY || rect.top;
+    
+    // Check viewport dimensions to prevent menu from going off-screen
+    const menuWidth = 200; // Approximate menu width
+    const menuHeight = 120; // Approximate menu height
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Adjust X position if menu would go off right edge
+    let adjustedX = clickX;
+    if (clickX + menuWidth > viewportWidth) {
+      adjustedX = clickX - menuWidth; // Position to the left of cursor
+    }
+    
+    // Adjust Y position if menu would go off bottom edge
+    let adjustedY = clickY;
+    if (clickY + menuHeight > viewportHeight) {
+      adjustedY = clickY - menuHeight; // Position above cursor
+    }
+    
+    // Ensure menu doesn't go off left or top edges
+    adjustedX = Math.max(10, adjustedX);
+    adjustedY = Math.max(10, adjustedY);
+
+    setContextMenu({
+      message,
+      x: adjustedX,
+      y: adjustedY
+    });
+  };
+
+  // Handle edit message
+  const handleEditMessage = (message) => {
+    setEditingMessage(message._id);
+    setEditText(message.content);
+    setContextMenu(null);
+  };
+
+  // Save edited message
+  const saveEditedMessage = async (messageId) => {
+    if (!editText.trim()) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const requestData = {
+        content: editText.trim(),
+        otherUserId: selectedFriend.id
+      };
+      
+      console.log('🔍 EDIT REQUEST DATA:', {
+        messageId,
+        requestData,
+        url: `http://localhost:5000/api/messages/edit/${messageId}`,
+        hasToken: !!token
+      });
+      
+      const response = await fetch(`http://localhost:5000/api/messages/edit/${messageId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (response.ok) {
+        // Update local messages
+        setMessages(prev => prev.map(msg => 
+          msg._id === messageId 
+            ? { ...msg, content: editText.trim(), editedAt: new Date() }
+            : msg
+        ));
+        
+        // Emit socket event for real-time update
+        if (socket) {
+          socket.emit('message-edited', {
+            messageId,
+            newContent: editText.trim(),
+            senderId: user._id || user.id,
+            receiverId: selectedFriend.id,
+            editedAt: new Date()
+          });
+        }
+        
+        console.log('✅ Message edited successfully');
+      } else {
+        const errorData = await response.text();
+        console.error('❌ Failed to edit message:', response.status, errorData);
+        alert(`Failed to edit message: ${response.status} ${errorData}`);
+      }
+    } catch (error) {
+      console.error('❌ Error editing message:', error);
+      alert('Error editing message');
+    }
+
+    setEditingMessage(null);
+    setEditText('');
+  };
+
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingMessage(null);
+    setEditText('');
+  };
+
+  // Handle delete message
+  const handleDeleteMessage = async (message) => {
+    if (!window.confirm('Are you sure you want to delete this message?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/messages/${message._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          otherUserId: selectedFriend.id
+        })
+      });
+
+      if (response.ok) {
+        // Remove message from local state
+        setMessages(prev => prev.filter(msg => msg._id !== message._id));
+        
+        // Emit socket event for real-time update
+        if (socket) {
+          socket.emit('message-deleted', {
+            messageId: message._id,
+            senderId: user._id || user.id,
+            receiverId: selectedFriend.id
+          });
+        }
+        
+        console.log('✅ Message deleted successfully');
+      } else {
+        console.error('❌ Failed to delete message');
+        alert('Failed to delete message');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting message:', error);
+      alert('Error deleting message');
+    }
+
+    setContextMenu(null);
+  };
+
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], { 
       hour: '2-digit', 
@@ -462,11 +690,24 @@ function Chat() {
   };
 
   const getDisplayList = () => {
-    // Combine friends and conversations, prioritizing conversations
-    const conversationUserIds = new Set(conversations.map(conv => conv.otherUserId));
+    // Get current user ID for filtering
+    const currentUserId = (user?._id || user?.id)?.toString();
+    
+    // Filter out self-conversations
+    const filteredConversations = conversations.filter(conv => {
+      const otherUserIdString = conv.otherUserId?.toString();
+      const isSelfConversation = otherUserIdString === currentUserId;
+      
+      console.log(`🔍 Conversation filtering: ${conv.otherUserName} (${otherUserIdString}) - Self conversation: ${isSelfConversation} (comparing with ${currentUserId})`);
+      
+      return !isSelfConversation;
+    });
+    
+    // Combine friends and filtered conversations, prioritizing conversations
+    const conversationUserIds = new Set(filteredConversations.map(conv => conv.otherUserId));
     const friendsNotInConversations = friends.filter(friend => !conversationUserIds.has(friend.id));
     
-    const conversationItems = conversations.map(conv => ({
+    const conversationItems = filteredConversations.map(conv => ({
       id: conv.otherUserId,
       name: conv.otherUserName,
       lastMessage: conv.lastMessage.content,
@@ -484,6 +725,8 @@ function Chat() {
       isConversation: false
     }));
 
+    console.log(`📊 Display list: ${conversationItems.length} conversations + ${friendItems.length} friends = ${conversationItems.length + friendItems.length} total`);
+    
     return [...conversationItems, ...friendItems];
   };
 
@@ -503,7 +746,13 @@ function Chat() {
               onClick={() => selectFriend(item)}
             >
               <div className="friend-info">
-                <div className="friend-name">
+                <div 
+                  className="friend-name clickable" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/user/${item.id}`);
+                  }}
+                >
                   {item.name}
                   {item.unreadCount > 0 && (
                     <span className="unread-badge">{item.unreadCount}</span>
@@ -600,17 +849,65 @@ function Chat() {
                     <div
                       key={message._id}
                       className={`message ${message.senderId === (user._id || user.id) ? 'sent' : 'received'} ${message.isOptimistic ? 'optimistic' : ''}`}
+                      onContextMenu={(e) => handleMessageLongPress(message, e)}
+                      onTouchStart={(e) => {
+                        // Handle mobile long press
+                        const touch = e.touches[0];
+                        const longPressTimer = setTimeout(() => {
+                          handleMessageLongPress(message, {
+                            preventDefault: () => {},
+                            stopPropagation: () => {},
+                            currentTarget: e.currentTarget,
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                          });
+                        }, 500);
+                        
+                        const handleTouchEnd = () => {
+                          clearTimeout(longPressTimer);
+                          document.removeEventListener('touchend', handleTouchEnd);
+                        };
+                        
+                        document.addEventListener('touchend', handleTouchEnd);
+                      }}
                     >
                       <div className="message-content">
-                        <div className="message-text">{message.content}</div>
-                        <div className="message-time">
-                          {formatTime(message.createdAt)}
-                          {message.senderId === (user._id || user.id) && (
-                            <span className={`message-status ${message.isOptimistic ? 'sending' : message.isRead ? 'read' : 'sent'}`}>
-                              {message.isOptimistic ? '⏳' : message.isRead ? '✓✓' : '✓'}
-                            </span>
-                          )}
-                        </div>
+                        {editingMessage === message._id ? (
+                          <div className="message-edit-container">
+                            <textarea
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              className="message-edit-input"
+                              autoFocus
+                            />
+                            <div className="message-edit-actions">
+                              <button 
+                                onClick={() => saveEditedMessage(message._id)}
+                                className="edit-save-btn"
+                              >
+                                Save
+                              </button>
+                              <button 
+                                onClick={cancelEditing}
+                                className="edit-cancel-btn"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="message-text">
+                              {message.content}
+                              {message.editedAt && (
+                                <span className="edited-indicator"> (edited)</span>
+                              )}
+                            </div>
+                            <div className="message-time">
+                              {formatTime(message.createdAt)}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -618,6 +915,36 @@ function Chat() {
                 </>
               )}
             </div>
+
+            {/* Context Menu */}
+            {contextMenu && (
+              <div 
+                className="message-context-menu"
+                style={{
+                  position: 'fixed',
+                  top: contextMenu.y,
+                  left: contextMenu.x,
+                  zIndex: 1000
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="context-menu-item" onClick={() => handleEditMessage(contextMenu.message)}>
+                  <span className="context-menu-icon">✏️</span>
+                  Edit Message
+                </div>
+                <div className="context-menu-item" onClick={() => handleDeleteMessage(contextMenu.message)}>
+                  <span className="context-menu-icon">🗑️</span>
+                  Delete Message
+                </div>
+                <div className="context-menu-item" onClick={() => {
+                  navigator.clipboard.writeText(contextMenu.message.content);
+                  setContextMenu(null);
+                }}>
+                  <span className="context-menu-icon">📋</span>
+                  Copy Text
+                </div>
+              </div>
+            )}
 
             <div className="message-input-container">
               <textarea

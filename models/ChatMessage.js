@@ -262,19 +262,67 @@ class ChatManager {
     }
   }
 
-  // Delete a message
-  async deleteMessage(messageId, userId1, userId2) {
+  // Edit a message
+  async editMessage(messageId, senderId, receiverId, newContent) {
     try {
-      const ChatModel = this.getChatModel(userId1, userId2);
+      const ChatModel = this.getChatModel(senderId, receiverId);
       
-      const result = await ChatModel.findByIdAndUpdate(
-        messageId,
-        { isDeleted: true },
+      // Find and update the message, but only if it belongs to the sender
+      const result = await ChatModel.findOneAndUpdate(
+        { 
+          _id: messageId, 
+          senderId: senderId.toString(),
+          isDeleted: false 
+        },
+        { 
+          content: newContent,
+          editedAt: new Date()
+        },
         { new: true }
       );
 
-      console.log(`🗑️ Message ${messageId} marked as deleted`);
-      return result;
+      if (result) {
+        console.log(`✏️ Message ${messageId} edited successfully`);
+        return result;
+      } else {
+        console.log(`❌ Message ${messageId} not found or not authorized to edit`);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error editing message:', error);
+      throw error;
+    }
+  }
+
+  // Delete a message
+  async deleteMessage(messageId, senderId, receiverId) {
+    try {
+      const ChatModel = this.getChatModel(senderId, receiverId);
+      
+      // First find the message to verify ownership
+      const message = await ChatModel.findById(messageId);
+      
+      if (!message) {
+        console.log(`❌ Message ${messageId} not found`);
+        return null;
+      }
+      
+      // Check if the user is the sender of the message
+      if (message.senderId !== senderId.toString()) {
+        console.log(`❌ User ${senderId} not authorized to delete message ${messageId} (belongs to ${message.senderId})`);
+        return null;
+      }
+      
+      // Hard delete - actually remove from database
+      const result = await ChatModel.findByIdAndDelete(messageId);
+
+      if (result) {
+        console.log(`🗑️ Message ${messageId} permanently deleted from database by sender ${senderId}`);
+        return result;
+      } else {
+        console.log(`❌ Failed to delete message ${messageId}`);
+        return null;
+      }
     } catch (error) {
       console.error('Error deleting message:', error);
       throw error;

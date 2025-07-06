@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import './Feed.css';
@@ -173,11 +174,26 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
 
 const PostCard = ({ post }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likeCount || 0);
   const [comments, setComments] = useState(post.comments || []);
   const [commentText, setCommentText] = useState('');
   const [showComments, setShowComments] = useState(false);
+
+  const getInitials = (firstName, lastName) => {
+    const first = firstName?.charAt(0)?.toUpperCase() || '';
+    const last = lastName?.charAt(0)?.toUpperCase() || '';
+    return first + last;
+  };
+
+  const handleUserClick = () => {
+    if (post.author._id === user?.id || post.author._id === user?._id) {
+      // If clicking on own post, don't navigate, let them use the Profile tab
+      return;
+    }
+    navigate(`/user/${post.author._id}`);
+  };
 
   const handleLike = async () => {
     try {
@@ -211,19 +227,40 @@ const PostCard = ({ post }) => {
 
   return (
     <div className="post-card">
-      <div className="post-header">
-        <div className="user-avatar">
-          {post.author.firstName?.[0]}{post.author.lastName?.[0]}
-        </div>
-        <div className="user-info">
-          <div className="user-name">
-            {post.author.firstName} {post.author.lastName}
+        <div className="post-header">
+          <div className="user-avatar" onClick={handleUserClick}>
+            {post.author.profilePicture ? (
+              <img 
+                src={post.author.profilePicture} 
+                alt="Profile" 
+                className="avatar-image"
+                onError={(e) => {
+                  // If image fails to load, hide it and show initials
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            
+            <div 
+              className={`avatar-initials ${post.author.profilePicture ? 'hidden' : ''}`}
+              style={{ display: post.author.profilePicture ? 'none' : 'flex' }}
+            >
+              {getInitials(post.author.firstName, post.author.lastName)}
+            </div>
           </div>
-          <div className="post-time">
-            {new Date(post.createdAt).toLocaleDateString()}
+          <div className="user-info">
+            <div 
+              className="user-name clickable" 
+              onClick={handleUserClick}
+            >
+              {post.author.firstName} {post.author.lastName}
+            </div>
+            <div className="post-time">
+              {new Date(post.createdAt).toLocaleDateString()}
+            </div>
           </div>
         </div>
-      </div>
 
       <div className="post-content">
         {post.caption && <p>{post.caption}</p>}
@@ -275,5 +312,7 @@ const PostCard = ({ post }) => {
     </div>
   );
 };
+
+
 
 export default Feed; 

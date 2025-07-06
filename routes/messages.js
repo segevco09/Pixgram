@@ -70,7 +70,27 @@ router.get('/conversation/:userId', auth, async (req, res) => {
     );
 
     // Mark messages as read (messages sent by the other user to current user)
-    await chatManager.markMessagesAsRead(userId, req.user.id);
+    const readResult = await chatManager.markMessagesAsRead(userId, req.user.id);
+
+    // Emit socket event to notify sender that their messages were read
+    if (readResult.modifiedCount > 0) {
+      console.log(`📤 Notifying sender ${userId} that ${readResult.modifiedCount} messages were read by ${req.user.id}`);
+      
+      // Get io instance from app
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user-${userId}`).emit('messages-read', {
+          readerId: req.user.id,
+          readerName: req.user.name || req.user.username,
+          conversationWith: req.user.id,
+          messageCount: readResult.modifiedCount,
+          timestamp: new Date()
+        });
+        console.log(`✅ Sent messages-read event to user-${userId}`);
+      } else {
+        console.warn('⚠️ Socket.io instance not available for read notification');
+      }
+    }
 
     res.json({
       success: true,
@@ -162,6 +182,26 @@ router.put('/read/:userId', auth, async (req, res) => {
 
     const result = await chatManager.markMessagesAsRead(userId, req.user.id);
 
+    // Emit socket event to notify sender that their messages were read
+    if (result.modifiedCount > 0) {
+      console.log(`📤 Notifying sender ${userId} that ${result.modifiedCount} messages were read by ${req.user.id}`);
+      
+      // Get io instance from app
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user-${userId}`).emit('messages-read', {
+          readerId: req.user.id,
+          readerName: req.user.name || req.user.username,
+          conversationWith: req.user.id,
+          messageCount: result.modifiedCount,
+          timestamp: new Date()
+        });
+        console.log(`✅ Sent messages-read event to user-${userId}`);
+      } else {
+        console.warn('⚠️ Socket.io instance not available for read notification');
+      }
+    }
+
     res.json({
       success: true,
       message: 'Messages marked as read',
@@ -200,6 +240,67 @@ router.get('/unread-count', auth, async (req, res) => {
   }
 });
 
+// @route   PUT /api/messages/edit/:messageId
+// @desc    Edit a message
+// @access  Private
+router.put('/edit/:messageId', auth, async (req, res) => {
+  try {
+    console.log('🔍 EDIT MESSAGE REQUEST:', {
+      messageId: req.params.messageId,
+      body: req.body,
+      userId: req.user?.id,
+      headers: req.headers.authorization ? 'Present' : 'Missing'
+    });
+
+    const { messageId } = req.params;
+    const { content, otherUserId } = req.body;
+
+    if (!content || !otherUserId) {
+      console.log('❌ Missing required fields:', { content: !!content, otherUserId: !!otherUserId });
+      return res.status(400).json({
+        success: false,
+        message: 'Content and other user ID are required'
+      });
+    }
+
+    console.log(`✏️ Editing message ${messageId} by user ${req.user.id}`);
+
+    const result = await chatManager.editMessage(messageId, req.user.id, otherUserId, content.trim());
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found or not authorized to edit'
+      });
+    }
+
+    // Emit socket event for real-time update
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user-${otherUserId}`).emit('message-edited', {
+        messageId,
+        newContent: content.trim(),
+        editedAt: new Date(),
+        senderId: req.user.id
+      });
+      console.log(`✅ Sent message-edited event to user-${otherUserId}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Message edited successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error editing message:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to edit message',
+      error: error.message
+    });
+  }
+});
+
 // @route   DELETE /api/messages/:messageId
 // @desc    Delete a message
 // @access  Private
@@ -215,7 +316,7 @@ router.delete('/:messageId', auth, async (req, res) => {
       });
     }
 
-    console.log(`🗑️ Deleting message ${messageId}`);
+    console.log(`🗑️ Deleting message ${messageId} by user ${req.user.id}`);
 
     const result = await chatManager.deleteMessage(messageId, req.user.id, otherUserId);
 
@@ -224,6 +325,16 @@ router.delete('/:messageId', auth, async (req, res) => {
         success: false,
         message: 'Message not found'
       });
+    }
+
+    // Emit socket event for real-time update
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user-${otherUserId}`).emit('message-deleted', {
+        messageId,
+        senderId: req.user.id
+      });
+      console.log(`✅ Sent message-deleted event to user-${otherUserId}`);
     }
 
     res.json({
