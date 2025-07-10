@@ -381,13 +381,6 @@ const Profile = () => {
                   )}
                 </div>
                 
-                <div className="post-overlay">
-                  <div className="post-stats">
-                    <span>❤️ {post.likes?.length || 0}</span>
-                    <span>💬 {post.comments?.length || 0}</span>
-                  </div>
-                </div>
-
                 <div className="post-info">
                   <p className="post-caption">
                     {post.caption?.length > 60 

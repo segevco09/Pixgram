@@ -71,10 +71,13 @@ const postSchema = new mongoose.Schema({
     type: String,
     enum: ['public', 'friends', 'private'],
     default: 'public'
+  },
+  group: {
+    type: mongoose.Schema.Types.ObjectId, // This means the value is an ID from another collection
+    ref: 'Group',                        // This tells Mongoose this ID refers to a Group document
+    default: null                        // If the post is not for a group, this will be null
   }
-}, {
-  timestamps: true
-});
+}, { timestamps: true });
 
 // Virtual for like count
 postSchema.virtual('likeCount').get(function() {

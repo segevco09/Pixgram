@@ -580,10 +580,6 @@ const Friends = () => {
                         <p>{post.caption}</p>
                       </div>
                     )}
-                    <div className="post-overlay">
-                      <span>💬 {post.comments?.length || 0}</span>
-                      <span>❤️ {post.likes?.length || 0}</span>
-                    </div>
                   </div>
                 ))}
               </div>

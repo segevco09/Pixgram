@@ -467,4 +467,61 @@ router.get('/:id/posts', auth, async (req, res) => {
   }
 });
 
+// Create a post in a group
+router.post('/:groupId/posts', auth, async (req, res) => {
+  try {
+    // 1. Get group ID from URL
+    const groupId = req.params.groupId;
+
+    // 2. Get post data from request body
+    const { caption, media } = req.body;
+
+    // 3. Create a new post with group field set
+    const post = new Post({
+      author: req.user.id, // The logged-in user's ID
+      caption,
+      media,
+      group: groupId
+    });
+
+    // 4. Save the post to the database
+    await post.save();
+
+    // 5. Return the new post
+    res.status(201).json({ success: true, post });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to create group post', error: error.message });
+  }
+});
+
+// Get all posts for a group
+router.get('/:groupId/posts', auth, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    // Find posts where the group field matches the groupId
+    const posts = await Post.find({ group: groupId })
+      .populate('author', 'username firstName lastName profilePicture');
+    res.json({ success: true, posts });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch group posts', error: error.message });
+  }
+});
+
+// Get feed for all groups the user is a member of
+router.get('/my-feed', auth, async (req, res) => {
+  try {
+    // 1. Find all groups the user is a member of
+    const userGroups = await Group.find({ members: req.user.id }).select('_id');
+    const groupIds = userGroups.map(g => g._id);
+
+    // 2. Find all posts in those groups
+    const posts = await Post.find({ group: { $in: groupIds } }).populate('author group');
+
+    // 3. Return the posts
+    res.json({ success: true, posts });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch group feed', error: error.message });
+  }
+});
+
 module.exports = router; 
