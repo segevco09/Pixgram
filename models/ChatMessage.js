@@ -318,7 +318,7 @@ class ChatManager {
 
       if (result) {
         console.log(`🗑️ Message ${messageId} permanently deleted from database by sender ${senderId}`);
-        return result;
+      return result;
       } else {
         console.log(`❌ Failed to delete message ${messageId}`);
         return null;

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import Feed from './Feed';
 import Groups from './Groups';
 import Chat from './Chat';
@@ -9,7 +10,22 @@ import './Dashboard.css';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('feed');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const userId = searchParams.get('userId');
+    
+    if (tab) {
+      setActiveTab(tab);
+    }
+    
+    // If there's a userId parameter and no specific tab, default to friends tab to show the profile
+    if (userId && !tab) {
+      setActiveTab('friends');
+    }
+  }, [searchParams]);
 
   const handleLogout = () => {
     logout();
@@ -54,7 +70,7 @@ const Dashboard = () => {
               className={`nav-button ${activeTab === 'friends' ? 'active' : ''}`}
               onClick={() => setActiveTab('friends')}
             >
-              Friends
+              Find Friends
             </button>
             <button
               className={`nav-button ${activeTab === 'chat' ? 'active' : ''}`}

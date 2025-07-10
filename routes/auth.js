@@ -329,7 +329,7 @@ router.get('/user/:userId', auth, async (req, res) => {
         message: 'User not found'
       });
     }
-
+    
     res.json({
       success: true,
       user

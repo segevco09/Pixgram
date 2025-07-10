@@ -198,7 +198,7 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(post.likeCount || 0);
+  const [likeCount, setLikeCount] = useState(post.likes?.length || 0);
   const [comments, setComments] = useState(post.comments || []);
   const [commentText, setCommentText] = useState('');
   const [showComments, setShowComments] = useState(false);
@@ -206,6 +206,18 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
 
   // Check if current user owns this post
   const isOwner = post.author._id === user?.id || post.author._id === user?._id;
+
+  // Check if current user has liked this post
+  useEffect(() => {
+    if (post.likes && user) {
+      const currentUserId = (user.id || user._id).toString();
+      const userLiked = post.likes.some(likeId => {
+        // Convert ObjectId to string for comparison
+        return likeId.toString() === currentUserId;
+      });
+      setIsLiked(userLiked);
+    }
+  }, [post.likes, user]);
 
   // Close options menu when clicking outside
   useEffect(() => {
@@ -233,7 +245,7 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
       // If clicking on own post, don't navigate, let them use the Profile tab
       return;
     }
-    navigate(`/user/${post.author._id}`);
+    navigate(`/dashboard?tab=friends&userId=${post.author._id}`);
   };
 
   const handleLike = async () => {
@@ -264,6 +276,28 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
     } catch (error) {
       console.error('Error adding comment:', error);
     }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this comment?');
+    if (!confirmDelete) return;
+
+    try {
+      const response = await axios.delete(`/api/posts/${post._id}/comments/${commentId}`);
+      
+      if (response.data.success) {
+        setComments(comments.filter(comment => comment._id !== commentId));
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      alert('Error deleting comment: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const canDeleteComment = (comment) => {
+    // User can delete their own comment or if they're the post author
+    return comment.user._id === user?.id || comment.user._id === user?._id ||
+           post.author._id === user?.id || post.author._id === user?._id;
   };
 
   const handleDeletePost = async () => {
@@ -317,7 +351,6 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
             </div>
             <div className="post-time">
               {new Date(post.createdAt).toLocaleDateString()}
-              {post.isEdited && <span className="edited-label"> (edited)</span>}
             </div>
           </div>
           
@@ -392,8 +425,19 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
           
           {comments.map(comment => (
             <div key={comment._id} className="comment">
-              <strong>{comment.user.firstName} {comment.user.lastName}:</strong>
-              <span>{comment.content}</span>
+              <div className="comment-content">
+                <strong>{comment.user.firstName} {comment.user.lastName}:</strong>
+                <span>{comment.content}</span>
+              </div>
+              {canDeleteComment(comment) && (
+                <button 
+                  className="delete-comment-btn"
+                  onClick={() => handleDeleteComment(comment._id)}
+                  title="Delete comment"
+                >
+                  🗑️
+                </button>
+              )}
             </div>
           ))}
         </div>

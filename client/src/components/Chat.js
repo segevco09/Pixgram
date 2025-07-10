@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import './Chat.css';
@@ -7,6 +7,7 @@ import './Chat.css';
 function Chat() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [friends, setFriends] = useState([]);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -97,27 +98,27 @@ function Chat() {
           
           // Always update messages state, but only if it's for the active conversation OR no conversation is selected
           if (isForActiveConversation || !currentSelectedFriend) {
-            setMessages(prev => {
-              // Check if message already exists (to prevent duplicates)
+          setMessages(prev => {
+            // Check if message already exists (to prevent duplicates)
               const messageExists = prev.some(msg => 
                 msg._id && messageData._id && msg._id.toString() === messageData._id.toString()
               );
               
-              if (messageExists) {
+            if (messageExists) {
                 console.log('📨 Message already exists, skipping duplicate');
-                return prev;
-              }
-              
+              return prev;
+            }
+            
               console.log('📨 Adding new message to active conversation');
               const newMessage = {
-                _id: messageData._id,
-                senderId: messageData.senderId,
-                senderName: messageData.senderName,
-                receiverId: messageData.receiverId,
-                receiverName: messageData.receiverName,
+              _id: messageData._id,
+              senderId: messageData.senderId,
+              senderName: messageData.senderName,
+              receiverId: messageData.receiverId,
+              receiverName: messageData.receiverName,
                 content: messageData.message || messageData.content,
                 createdAt: messageData.timestamp || messageData.createdAt,
-                isRead: messageData.isRead
+              isRead: messageData.isRead
               };
               
               // Check if this is replacing an optimistic message (same content, same sender)
@@ -139,7 +140,7 @@ function Chat() {
             });
           } else {
             console.log('📨 Message not for active conversation, only updating conversations list');
-          }
+        }
 
           // Always update conversations list to reflect new message
           setTimeout(() => {
@@ -189,6 +190,26 @@ function Chat() {
       };
     }
   }, [user]);
+
+    // Handle URL parameters for auto-selecting a chat
+  useEffect(() => {
+    const userId = searchParams.get('userId');
+    console.log('🔍 Chat component checking URL userId:', userId);
+    console.log('🔍 Available friends:', friends);
+    
+    if (userId && friends.length > 0) {
+      // Find the friend in the friends list
+      const friendToSelect = friends.find(friend => friend.id === userId);
+      console.log('🔍 Found friend to select:', friendToSelect);
+      
+      if (friendToSelect && (!selectedFriend || selectedFriend.id !== userId)) {
+        console.log('🎯 Auto-selecting friend from URL:', friendToSelect);
+        selectFriend(friendToSelect);
+        // Clear the URL parameter after selecting
+        setSearchParams({});
+      }
+    }
+   }, [searchParams, friends, selectedFriend]);
 
   // Load friends list
   useEffect(() => {
@@ -726,7 +747,7 @@ function Chat() {
     }));
 
     console.log(`📊 Display list: ${conversationItems.length} conversations + ${friendItems.length} friends = ${conversationItems.length + friendItems.length} total`);
-    
+
     return [...conversationItems, ...friendItems];
   };
 
@@ -750,7 +771,7 @@ function Chat() {
                   className="friend-name clickable" 
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/user/${item.id}`);
+                    navigate(`/dashboard?tab=friends&userId=${item.id}`);
                   }}
                 >
                   {item.name}
@@ -903,8 +924,8 @@ function Chat() {
                                 <span className="edited-indicator"> (edited)</span>
                               )}
                             </div>
-                            <div className="message-time">
-                              {formatTime(message.createdAt)}
+                        <div className="message-time">
+                          {formatTime(message.createdAt)}
                             </div>
                           </>
                         )}

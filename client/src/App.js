@@ -1,10 +1,9 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
-import UserProfile from './components/UserProfile';
 import './App.css';
 
 // Protected Route Component
@@ -35,6 +34,12 @@ const PublicRoute = ({ children }) => {
   }
   
   return user ? <Navigate to="/dashboard" /> : children;
+};
+
+// Redirect old user profile URLs to new structure
+const UserProfileRedirect = () => {
+  const { userId } = useParams();
+  return <Navigate to={`/dashboard?tab=friends&userId=${userId}`} replace />;
 };
 
 function App() {
@@ -72,7 +77,7 @@ function App() {
               path="/user/:userId" 
               element={
                 <ProtectedRoute>
-                  <UserProfile />
+                  <UserProfileRedirect />
                 </ProtectedRoute>
               } 
             />
