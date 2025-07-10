@@ -3,23 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import './Feed.css';
+import InfiniteScroll from 'react-infinite-scroll-component';
 
 const Feed = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
 
   useEffect(() => {
-    fetchPosts();
+    fetchMorePosts();
   }, []);
 
-  const fetchPosts = async () => {
+  const fetchMorePosts = async () => {
     try {
-      const response = await axios.get('/api/posts');
+      const response = await axios.get(`/api/feed?page=${page}&limit=10`);
       if (response.data.success) {
-        setPosts(response.data.posts);
+        setPosts(prev => [...prev, ...response.data.posts]);
+        setPage(prev => prev + 1);
+        if (response.data.posts.length < 10) setHasMore(false);
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -68,21 +73,29 @@ const Feed = () => {
         />
       )}
 
-      <div className="posts-container">
-        {posts.map(post => (
-          <PostCard 
-            key={post._id} 
-            post={post} 
-            onPostUpdated={(updatedPost) => {
-              setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
-            }}
-            onPostDeleted={(deletedPostId) => {
-              setPosts(posts.filter(p => p._id !== deletedPostId));
-            }}
-            onEditPost={(post) => setEditingPost(post)}
-          />
-        ))}
-      </div>
+      <InfiniteScroll
+        dataLength={posts.length}
+        next={fetchMorePosts}
+        hasMore={hasMore}
+        loader={<h4>Loading...</h4>}
+        endMessage={<p>No more posts to load.</p>}
+      >
+        <div className="posts-container">
+          {posts.map(post => (
+            <PostCard 
+              key={post._id} 
+              post={post} 
+              onPostUpdated={(updatedPost) => {
+                setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
+              }}
+              onPostDeleted={(deletedPostId) => {
+                setPosts(posts.filter(p => p._id !== deletedPostId));
+              }}
+              onEditPost={(post) => setEditingPost(post)}
+            />
+          ))}
+        </div>
+      </InfiniteScroll>
     </div>
   );
 };
