@@ -9,6 +9,7 @@ const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [editingPost, setEditingPost] = useState(null);
 
   useEffect(() => {
     fetchPosts();
@@ -56,9 +57,30 @@ const Feed = () => {
         />
       )}
 
+      {editingPost && (
+        <EditPostModal 
+          post={editingPost}
+          onClose={() => setEditingPost(null)}
+          onPostUpdated={(updatedPost) => {
+            setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
+            setEditingPost(null);
+          }}
+        />
+      )}
+
       <div className="posts-container">
         {posts.map(post => (
-          <PostCard key={post._id} post={post} />
+          <PostCard 
+            key={post._id} 
+            post={post} 
+            onPostUpdated={(updatedPost) => {
+              setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
+            }}
+            onPostDeleted={(deletedPostId) => {
+              setPosts(posts.filter(p => p._id !== deletedPostId));
+            }}
+            onEditPost={(post) => setEditingPost(post)}
+          />
         ))}
       </div>
     </div>
@@ -172,7 +194,7 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
   );
 };
 
-const PostCard = ({ post }) => {
+const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
@@ -180,6 +202,25 @@ const PostCard = ({ post }) => {
   const [comments, setComments] = useState(post.comments || []);
   const [commentText, setCommentText] = useState('');
   const [showComments, setShowComments] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+
+  // Check if current user owns this post
+  const isOwner = post.author._id === user?.id || post.author._id === user?._id;
+
+  // Close options menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showOptionsMenu && !event.target.closest('.post-options')) {
+        setShowOptionsMenu(false);
+      }
+    };
+
+    if (showOptionsMenu) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showOptionsMenu]);
 
   const getInitials = (firstName, lastName) => {
     const first = firstName?.charAt(0)?.toUpperCase() || '';
@@ -225,6 +266,24 @@ const PostCard = ({ post }) => {
     }
   };
 
+  const handleDeletePost = async () => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this post? This action cannot be undone.');
+    
+    if (confirmDelete) {
+      try {
+        const response = await axios.delete(`/api/posts/${post._id}`);
+        if (response.data.success) {
+          onPostDeleted(post._id);
+        }
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        alert('Error deleting post: ' + (error.response?.data?.message || error.message));
+      }
+    }
+  };
+
+
+
   return (
     <div className="post-card">
         <div className="post-header">
@@ -258,8 +317,38 @@ const PostCard = ({ post }) => {
             </div>
             <div className="post-time">
               {new Date(post.createdAt).toLocaleDateString()}
+              {post.isEdited && <span className="edited-label"> (edited)</span>}
             </div>
           </div>
+          
+          {/* Show options menu for post owner */}
+          {isOwner && (
+            <div className="post-options">
+              <button 
+                className="options-button" 
+                onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+              >
+                ⋯
+              </button>
+              
+              {showOptionsMenu && (
+                <div className="options-menu">
+                  <button onClick={() => {
+                    onEditPost(post);
+                    setShowOptionsMenu(false);
+                  }}>
+                    ✏️ Edit
+                  </button>
+                  <button onClick={() => {
+                    setShowOptionsMenu(false);
+                    handleDeletePost();
+                  }}>
+                    🗑️ Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
       <div className="post-content">
@@ -309,6 +398,76 @@ const PostCard = ({ post }) => {
           ))}
         </div>
       )}
+
+    </div>
+  );
+};
+
+const EditPostModal = ({ post, onClose, onPostUpdated }) => {
+  const [caption, setCaption] = useState(post.caption || '');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const response = await axios.put(`/api/posts/${post._id}`, {
+        caption: caption.trim()
+      });
+      
+      if (response.data.success) {
+        onPostUpdated(response.data.post);
+      } else {
+        console.error('Failed to update post:', response.data.message);
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+      alert('Error updating post: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>Edit Post</h3>
+          <button className="close-button" onClick={onClose}>×</button>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <textarea
+            placeholder="What's happening?"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            rows="4"
+            maxLength="2000"
+          />
+          
+          {/* Show current media if exists */}
+          {post.media && post.media.type !== 'none' && (
+            <div className="current-media">
+              <p>Current media (cannot be changed):</p>
+              {post.media.type === 'image' ? (
+                <img src={post.media.url} alt="Current media" style={{ maxWidth: '200px', maxHeight: '200px' }} />
+              ) : (
+                <video src={post.media.url} controls style={{ maxWidth: '200px', maxHeight: '200px' }} />
+              )}
+            </div>
+          )}
+          
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} disabled={loading}>
+              Cancel
+            </button>
+            <button type="submit" disabled={loading}>
+              {loading ? 'Updating...' : 'Update Post'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
