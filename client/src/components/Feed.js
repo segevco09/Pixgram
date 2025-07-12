@@ -21,6 +21,7 @@ const Feed = () => {
   const fetchMorePosts = async () => {
     try {
       const response = await axios.get(`/api/feed?page=${page}&limit=10`);
+      console.log('Feed response:', response.data); // <-- Add this
       if (response.data.success) {
         setPosts(prev => [...prev, ...response.data.posts]);
         setPage(prev => prev + 1);
@@ -365,6 +366,12 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
             <div className="post-time">
               {new Date(post.createdAt).toLocaleDateString()}
             </div>
+            {/* Add group information display */}
+            {post.group && (
+              <div className="post-group">
+                Posted in <span className="group-name">{post.group.name}</span>
+              </div>
+            )}
           </div>
           
           {/* Show options menu for post owner */}

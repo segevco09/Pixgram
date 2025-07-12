@@ -1,9 +1,44 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Group = require('../models/Group');
 const Post = require('../models/Post');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Accept images and videos
+  if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image and video files are allowed'), false);
+  }
+};
+
+const upload = multer({ 
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit
+  }
+});
 
 // @route   GET /api/groups
 // @desc    Get all groups with search parameters
@@ -468,28 +503,72 @@ router.get('/:id/posts', auth, async (req, res) => {
 });
 
 // Create a post in a group
-router.post('/:groupId/posts', auth, async (req, res) => {
+router.post('/:groupId/posts', auth, upload.single('media'), async (req, res) => {
   try {
     // 1. Get group ID from URL
     const groupId = req.params.groupId;
+    console.log('🔍 Group Post Debug: Group ID =', groupId);
+    console.log('🔍 Group Post Debug: User ID =', req.user.id);
 
-    // 2. Get post data from request body
-    const { caption, media } = req.body;
+    // 2. Get post data from request body (now properly parsed by multer)
+    const { caption } = req.body;
+    console.log('🔍 Group Post Debug: Caption =', caption);
+    console.log('🔍 Group Post Debug: File =', req.file ? req.file.filename : 'No file');
 
-    // 3. Create a new post with group field set
-    const post = new Post({
-      author: req.user.id, // The logged-in user's ID
-      caption,
-      media,
+    // 3. Check if user is member of the group
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+    
+    const isMember = group.isMember(req.user.id);
+    console.log('🔍 Group Post Debug: Is user member of group? =', isMember);
+    console.log('🔍 Group Post Debug: Group members =', group.members.map(m => m.user.toString()));
+
+    // SECURITY CHECK: Only allow members to post
+    if (!isMember) {
+      console.log('🔍 Group Post Debug: User is not a member, denying post');
+      return res.status(403).json({ 
+        success: false, 
+        message: 'You must be a member of this group to post' 
+      });
+    }
+
+    // 4. Build post data object
+    const postData = {
+      author: req.user.id,
+      caption: caption || '',
       group: groupId
+    };
+
+    // 5. Handle media upload if file was provided
+    if (req.file) {
+      postData.media = {
+        type: req.file.mimetype.startsWith('image/') ? 'image' : 'video',
+        url: `/uploads/${req.file.filename}`,
+        filename: req.file.filename
+      };
+    }
+
+    console.log('🔍 Group Post Debug: Post object before save =', {
+      author: postData.author,
+      group: postData.group,
+      caption: postData.caption,
+      media: postData.media
     });
 
-    // 4. Save the post to the database
+    // 6. Create and save the post
+    const post = new Post(postData);
     await post.save();
+    console.log('🔍 Group Post Debug: Post saved successfully with ID =', post._id);
 
-    // 5. Return the new post
+    // 7. Populate author information for the response
+    await post.populate('author', 'username firstName lastName profilePicture');
+
+    // 8. Return the new post
     res.status(201).json({ success: true, post });
   } catch (error) {
+    console.error('🔍 Group Post Debug: Error =', error);
     res.status(500).json({ success: false, message: 'Failed to create group post', error: error.message });
   }
 });

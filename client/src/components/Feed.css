@@ -259,8 +259,24 @@ linear-gradient, transform, animation, media queries
 }
 
 .post-time {
+  font-size: 12px;
   color: #666;
-  font-size: 14px;
+  margin-top: 2px;
+}
+
+/* Group information styling */
+.post-group {
+  font-size: 12px;
+  color: #667eea;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.group-name {
+  font-weight: 600;
+  color: #5a67d8;
 }
 
 .post-content {
