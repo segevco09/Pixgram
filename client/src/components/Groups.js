@@ -213,7 +213,7 @@ const GroupCard = ({ group, currentUser, onGroupUpdate, onViewGroup }) => {
   return (
     <div className="group-card">
       <div className="group-card-header">
-        <h3 className="group-name">{group.name}</h3>
+        <h3 className="group-name" style={{ color: '#fff' }}>{group.name}</h3>
         <div className="group-privacy">
           {getPrivacyIcon()} {group.privacy}
         </div>

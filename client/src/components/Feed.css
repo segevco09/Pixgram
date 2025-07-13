@@ -271,7 +271,7 @@ linear-gradient, transform, animation, media queries
   margin-top: 2px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 12px; /* or try 10px, 14px, etc. */
 }
 
 .group-name {
@@ -636,4 +636,33 @@ linear-gradient, transform, animation, media queries
     height: 22px;
     padding: 2px 6px;
   }
+} 
+
+.feed-container .user-name,
+.feed-container .post-group,
+.feed-container .feed-label,
+.feed-container .feed-value {
+  color: #000;
+  background: none;
+  font-weight: normal;
+  box-shadow: none;
+  border: none;
+  width: auto;
+} 
+
+/* Cleaned up: removed !important and increased specificity */
+.feed-container .stat-label,
+.feed-container .stat-value,
+.feed-container .group-description-full,
+.feed-container .group-creator-info,
+.feed-container .group-description-full h4,
+.feed-container .group-creator-info h4 {
+  color: #000;
+  background: none;
+  font-weight: normal;
+  width: auto;
+} 
+
+.post-group .group-name {
+  margin-left: 4px; /* or 8px, adjust as needed */
 } 

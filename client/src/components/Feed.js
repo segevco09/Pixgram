@@ -236,7 +236,7 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
 const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(post.likes?.includes(user._id));
   const [likeCount, setLikeCount] = useState(post.likes?.length || 0);
   const [comments, setComments] = useState(post.comments || []);
   const [commentText, setCommentText] = useState('');
@@ -288,14 +288,18 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
   };
 
   const handleLike = async () => {
+    // Optimistically update UI
+    setIsLiked(prev => !prev);
+    setLikeCount(prev => prev + (isLiked ? -1 : 1));
+
     try {
-      const response = await axios.post(`/api/posts/${post._id}/like`);
-      if (response.data.success) {
-        setIsLiked(response.data.isLiked);
-        setLikeCount(response.data.likeCount);
-      }
+      await axios.post(`/api/posts/${post._id}/like`);
+      // Optionally, you can update state again if server returns new values
     } catch (error) {
-      console.error('Error liking post:', error);
+      // If error, revert UI
+      setIsLiked(prev => !prev);
+      setLikeCount(prev => prev + (isLiked ? 1 : -1));
+      alert('Failed to like post');
     }
   };
 
