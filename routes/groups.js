@@ -464,14 +464,11 @@ router.get('/:id/posts', auth, async (req, res) => {
 
     // Check if user can view posts
     const userId = req.user._id;
-    const canView = group.privacy === 'public' || 
-                   group.isMember(userId) || 
-                   group.isAdmin(userId);
-
-    if (!canView) {
+    const isMember = group.isMember(userId);
+    if (!isMember) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: 'You must be a member of this group to view posts'
       });
     }
 
@@ -601,6 +598,15 @@ router.get('/my-feed', auth, async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch group feed', error: error.message });
   }
+});
+
+// Add this route in routes/groups.js
+router.get('/:groupId/isMember', auth, async (req, res) => {
+  const group = await Group.findById(req.params.groupId);
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  // This is the correct way if members is an array of objects with a user field:
+  const isMember = group.members.some(m => m.user.toString() === req.user.id.toString());
+  res.json({ member: isMember });
 });
 
 module.exports = router; 

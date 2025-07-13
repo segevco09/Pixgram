@@ -13,24 +13,49 @@ const Feed = () => {
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
+  const [isFetching, setIsFetching] = useState(false);
+  const hasInitialFetch = useRef(false);
 
   useEffect(() => {
-    fetchMorePosts();
+    if (!hasInitialFetch.current) {
+      console.log('Feed component mounted, fetching initial posts...');
+      hasInitialFetch.current = true;
+      fetchMorePosts();
+    }
   }, []);
 
   const fetchMorePosts = async () => {
+    if (isFetching) {
+      console.log('Already fetching, skipping...');
+      return;
+    }
+    
     try {
-      const response = await axios.get(`/api/feed?page=${page}&limit=10`);
-      console.log('Feed response:', response.data); // <-- Add this
+      setIsFetching(true);
+      const currentPage = page;
+      console.log('Fetching page:', currentPage);
+      const response = await axios.get(`/api/feed?page=${currentPage}&limit=10`);
+      console.log('Feed response for page', currentPage, ':', response.data);
       if (response.data.success) {
-        setPosts(prev => [...prev, ...response.data.posts]);
-        setPage(prev => prev + 1);
+        setPosts(prev => {
+          console.log('Current posts count:', prev.length);
+          console.log('New posts count:', response.data.posts.length);
+          
+          // Filter out duplicates based on post ID
+          const existingIds = new Set(prev.map(post => post._id));
+          const newPosts = response.data.posts.filter(post => !existingIds.has(post._id));
+          
+          console.log('Filtered new posts count:', newPosts.length);
+          return [...prev, ...newPosts];
+        });
+        setPage(currentPage + 1);
         if (response.data.posts.length < 10) setHasMore(false);
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   };
 
@@ -405,7 +430,7 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
         </div>
 
       <div className="post-content">
-        {post.caption && <p>{post.caption}</p>}
+        {post.caption && <p className="feed-post-caption">{post.caption}</p>}
         
         {post.media && post.media.type !== 'none' && (
           <div className="post-media">

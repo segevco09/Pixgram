@@ -573,6 +573,10 @@ linear-gradient, transform, animation, media queries
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.feed-post-caption {
+  white-space: pre-line;
+}
+
 
 /* Responsive Design */
 @media (max-width: 768px) {

@@ -13,6 +13,8 @@ const Groups = () => {
     category: 'all',
     privacy: 'all'
   });
+  const [isMember, setIsMember] = useState(false);
+  const [groupPosts, setGroupPosts] = useState([]);
 
   useEffect(() => {
     fetchGroups();
@@ -36,6 +38,27 @@ const Groups = () => {
 
   const handleFilterChange = (key, value) => {
     setSearchFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleGroupClick = async (groupId, isMemberLocal) => {
+    setIsMember(isMemberLocal); // Set immediately!
+    setGroupPosts([]);
+    setSelectedGroup(null);
+
+    // Fetch group details
+    const groupRes = await axios.get(`/api/groups/${groupId}`);
+    const group = groupRes.data.group;
+    setSelectedGroup(group);
+
+    // Optionally, you can still verify membership with the API in the background
+    // but for instant UI, use the local value
+
+    // Only fetch posts if member
+    if (isMemberLocal) {
+      const postsRes = await axios.get(`/api/groups/${groupId}/posts`, { withCredentials: true });
+      const posts = postsRes.data.posts;
+      setGroupPosts(posts);
+    }
   };
 
   return (
@@ -92,15 +115,20 @@ const Groups = () => {
 
       {/* Groups Grid */}
       <div className="groups-grid">
-        {groups.map(group => (
-          <GroupCard 
-            key={group._id} 
-            group={group} 
-            currentUser={user}
-            onGroupUpdate={fetchGroups}
-            onViewGroup={setSelectedGroup}
-          />
-        ))}
+        {groups.map(group => {
+          const isMember = group.members?.some(
+            m => (m.user?._id || m.user) === user._id
+          );
+          return (
+            <GroupCard 
+              key={group._id} 
+              group={group} 
+              currentUser={user}
+              onGroupUpdate={fetchGroups}
+              onViewGroup={() => handleGroupClick(group._id, isMember)}
+            />
+          );
+        })}
       </div>
 
       {groups.length === 0 && (
@@ -122,6 +150,7 @@ const Groups = () => {
         <GroupDetailModal 
           group={selectedGroup}
           currentUser={user}
+          isMember={isMember}
           onClose={() => setSelectedGroup(null)}
           onGroupUpdate={fetchGroups}
         />
@@ -133,8 +162,8 @@ const Groups = () => {
 const GroupCard = ({ group, currentUser, onGroupUpdate, onViewGroup }) => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const isMember = group.members?.some(member => 
-    member.user._id === currentUser._id || member.user === currentUser._id
+  const isMember = group.members?.some(
+    m => (m.user?._id || m.user) === currentUser._id
   );
   
   const isAdmin = group.admins?.includes(currentUser._id) || 
@@ -206,7 +235,7 @@ const GroupCard = ({ group, currentUser, onGroupUpdate, onViewGroup }) => {
       <div className="group-actions">
         <button 
           className="view-group-btn"
-          onClick={() => onViewGroup(group)}
+          onClick={onViewGroup}
         >
           View Details
         </button>
@@ -340,7 +369,8 @@ const CreateGroupModal = ({ onClose, onGroupCreated }) => {
   );
 };
 
-const GroupDetailModal = ({ group, currentUser, onClose, onGroupUpdate }) => {
+const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate }) => {
+  console.log('GroupDetailModal isMember:', isMember);
   const [caption, setCaption] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -358,8 +388,8 @@ const GroupDetailModal = ({ group, currentUser, onClose, onGroupUpdate }) => {
   const isCreator = group.creator._id === currentUser._id;
 
   useEffect(() => {
-    fetchGroupPosts();
-    // eslint-disable-next-line
+    // This useEffect is removed as per the edit hint.
+    // fetchGroupPosts(); 
   }, [group._id]);
 
   const fetchGroupPosts = async () => {
@@ -497,55 +527,63 @@ const GroupDetailModal = ({ group, currentUser, onClose, onGroupUpdate }) => {
             </form>
           )}
 
-          {/* --- Post to Group Form --- */}
-          <form onSubmit={handlePostSubmit} className="group-post-form">
-            <textarea
-              placeholder="What's happening in this group?"
-              value={caption}
-              onChange={e => setCaption(e.target.value)}
-              rows="3"
-              disabled={posting}
-            />
-            <input
-              type="file"
-              onChange={handleFileSelect}
-              accept="image/*,video/*"
-              disabled={posting}
-            />
-            {filePreview && (
-              <div className="file-preview">
-                {filePreview.type === 'image' ? (
-                  <img src={filePreview.url} alt="Preview" />
+          {isMember ? (
+            <>
+              {/* Post form */}
+              <form onSubmit={handlePostSubmit} className="group-post-form">
+                <textarea
+                  placeholder="What's happening in this group?"
+                  value={caption}
+                  onChange={e => setCaption(e.target.value)}
+                  rows="3"
+                  disabled={posting}
+                />
+                <input
+                  type="file"
+                  onChange={handleFileSelect}
+                  accept="image/*,video/*"
+                  disabled={posting}
+                />
+                {filePreview && (
+                  <div className="file-preview">
+                    {filePreview.type === 'image' ? (
+                      <img src={filePreview.url} alt="Preview" />
+                    ) : (
+                      <video src={filePreview.url} controls />
+                    )}
+                  </div>
+                )}
+                <button type="submit" disabled={posting}>
+                  {posting ? 'Posting...' : 'Share Post'}
+                </button>
+              </form>
+
+              {/* Feed */}
+              <div className="group-posts-feed">
+                {groupPosts.length === 0 ? (
+                  <p>No posts in this group yet.</p>
                 ) : (
-                  <video src={filePreview.url} controls />
+                  groupPosts.map(post => (
+                    <div key={post._id} className="group-post-card">
+                      <h4>{post.author?.username}</h4>
+                      <p className="feed-post-caption">{post.caption}</p>
+                      {post.media?.url && (
+                        post.media.type === 'image' ? (
+                          <img src={post.media.url} alt="Group Post" />
+                        ) : (
+                          <video src={post.media.url} controls />
+                        )
+                      )}
+                    </div>
+                  ))
                 )}
               </div>
-            )}
-            <button type="submit" disabled={posting}>
-              {posting ? 'Posting...' : 'Share Post'}
-            </button>
-          </form>
-
-          {/* --- Group Posts Feed --- */}
-          <div className="group-posts-feed">
-            {groupPosts.length === 0 ? (
-              <p>No posts in this group yet.</p>
-            ) : (
-              groupPosts.map(post => (
-                <div key={post._id} className="group-post-card">
-                  <h4>{post.author?.username}</h4>
-                  <p>{post.caption}</p>
-                  {post.media?.url && (
-                    post.media.type === 'image' ? (
-                      <img src={post.media.url} alt="Group Post" />
-                    ) : (
-                      <video src={post.media.url} controls />
-                    )
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+            </>
+          ) : (
+            <div className="not-member-message">
+              <p>You must join this group to see and post content.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
