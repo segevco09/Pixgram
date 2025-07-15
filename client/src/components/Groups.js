@@ -15,6 +15,7 @@ const Groups = () => {
   });
   const [isMember, setIsMember] = useState(false);
   const [groupPosts, setGroupPosts] = useState([]);
+  const [commentText, setCommentText] = useState('');
 
   useEffect(() => {
     fetchGroups();
@@ -59,6 +60,16 @@ const Groups = () => {
       const posts = postsRes.data.posts;
       setGroupPosts(posts);
     }
+  };
+
+  const handleComment = async (e) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    // Add your logic to post the comment to the backend here
+    // Example:
+    // await axios.post(`/api/groups/${groupId}/posts/${postId}/comments`, { content: commentText });
+    setCommentText('');
+    // Optionally refresh comments here
   };
 
   return (

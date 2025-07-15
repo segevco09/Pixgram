@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import './Friends.css';
+import Comment from './Comment';
+import './Comment.css';
 
 const Friends = () => {
   const { user } = useAuth();
@@ -728,6 +730,7 @@ const PostViewModal = ({ post, onClose }) => {
   const canDeleteComment = (comment) => {
     // User can delete their own comment or if they're the post author
     return comment.user._id === user?.id || comment.user._id === user?._id ||
+
            post.author._id === user?.id || post.author._id === user?._id;
   };
 
@@ -814,21 +817,13 @@ const PostViewModal = ({ post, onClose }) => {
               
               <div className="comments-list">
                 {comments.map(comment => (
-                  <div key={comment._id} className="comment">
-                    <div className="comment-content">
-                      <strong>{comment.user?.firstName} {comment.user?.lastName}:</strong>
-                      <span>{comment.content}</span>
-                    </div>
-                    {canDeleteComment(comment) && (
-                      <button 
-                        className="delete-comment-btn"
-                        onClick={() => handleDeleteComment(comment._id)}
-                        title="Delete comment"
-                      >
-                        🗑️
-                      </button>
-                    )}
-                  </div>
+                  <Comment
+                    key={comment._id}
+                    comment={comment}
+                    user={user}
+                    canDelete={canDeleteComment(comment)}
+                    handleDelete={handleDeleteComment}
+                  />
                 ))}
               </div>
             </div>

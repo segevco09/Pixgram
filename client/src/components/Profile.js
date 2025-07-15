@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import './Profile.css';
+import Comment from './Comment';
+import CommentForm from './CommentForm';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -617,34 +619,21 @@ const PostViewModal = ({ post, onClose, onEditPost, onDeletePost }) => {
 
           {showComments && (
             <div className="post-modal-comments">
-              <form onSubmit={handleComment} className="comment-form">
-                <input
-                  type="text"
-                  placeholder="Write a comment..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  className="comment-input"
-                />
-                <button type="submit" className="comment-submit">Post</button>
-              </form>
+              <CommentForm
+                commentText={commentText}
+                setCommentText={setCommentText}
+                handleComment={handleComment}
+              />
               
               <div className="comments-list">
                 {comments.map(comment => (
-                  <div key={comment._id} className="comment">
-                    <div className="comment-content">
-                      <strong>{comment.user?.firstName} {comment.user?.lastName}:</strong>
-                      <span>{comment.content}</span>
-                    </div>
-                    {canDeleteComment(comment) && (
-                      <button 
-                        className="delete-comment-btn"
-                        onClick={() => handleDeleteComment(comment._id)}
-                        title="Delete comment"
-                      >
-                        🗑️
-                      </button>
-                    )}
-                  </div>
+                  <Comment
+                    key={comment._id}
+                    comment={comment}
+                    user={user}
+                    canDelete={canDeleteComment(comment)}
+                    handleDelete={handleDeleteComment}
+                  />
                 ))}
               </div>
             </div>

@@ -62,6 +62,7 @@ router.get('/', auth, async (req, res) => {
     const posts = await Post.find(query)
       .populate('author', 'username firstName lastName profilePicture')
       .populate('group', 'name')
+      .populate('comments.user', 'username firstName lastName profilePicture')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

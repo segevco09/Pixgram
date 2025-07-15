@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import './Feed.css';
+import Comment from './Comment';
 import InfiniteScroll from 'react-infinite-scroll-component';
+import CommentForm from './CommentForm';
 
 const Feed = () => {
   const { user } = useAuth();
@@ -462,33 +464,20 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
 
       {showComments && (
         <div className="comments-section">
-          <form onSubmit={handleComment}>
-            <input
-              type="text"
-              placeholder="Write a comment..."
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-            />
-            <button type="submit">Post</button>
-          </form>
-          
           {comments.map(comment => (
-            <div key={comment._id} className="comment">
-              <div className="comment-content">
-                <strong>{comment.user.firstName} {comment.user.lastName}:</strong>
-                <span>{comment.content}</span>
-              </div>
-              {canDeleteComment(comment) && (
-                <button 
-                  className="delete-comment-btn"
-                  onClick={() => handleDeleteComment(comment._id)}
-                  title="Delete comment"
-                >
-                  🗑️
-                </button>
-              )}
-            </div>
+            <Comment
+              key={comment._id}
+              comment={comment}
+              user={user}
+              canDelete={canDeleteComment(comment)}
+              handleDelete={handleDeleteComment}
+            />
           ))}
+          <CommentForm
+            commentText={commentText}
+            setCommentText={setCommentText}
+            handleComment={handleComment}
+          />
         </div>
       )}
 

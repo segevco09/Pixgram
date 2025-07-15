@@ -318,13 +318,16 @@ router.post('/:id/comments', auth, async (req, res) => {
 
     post.comments.push(newComment);
     await post.save();
-    
-    await post.populate('comments.user', 'username firstName lastName profilePicture');
 
+    const user = await User.findById(newComment.user).select('username firstName lastName profilePicture');
+    const commentWithUser = {
+      ...newComment.toObject(),
+      user
+    };
     res.status(201).json({
       success: true,
       message: 'Comment added successfully',
-      comment: post.comments[post.comments.length - 1]
+      comment: commentWithUser
     });
   } catch (error) {
     console.error('Add comment error:', error);
