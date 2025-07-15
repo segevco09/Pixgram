@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Post = require('../models/Post');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
@@ -53,8 +54,6 @@ router.get('/', auth, async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Get current user with friends
-    const User = require('../models/User');
     const currentUser = await User.findById(req.user._id);
     
     // Include posts from user and their friends
@@ -319,9 +318,11 @@ router.post('/:id/comments', auth, async (req, res) => {
     post.comments.push(newComment);
     await post.save();
 
-    const user = await User.findById(newComment.user).select('username firstName lastName profilePicture');
+    // Get the last comment (the one just added)
+    const savedComment = post.comments[post.comments.length - 1];
+    const user = await User.findById(savedComment.user).select('username firstName lastName profilePicture');
     const commentWithUser = {
-      ...newComment.toObject(),
+      ...savedComment.toObject(),
       user
     };
     res.status(201).json({
@@ -420,6 +421,24 @@ router.get('/user/:userId', auth, async (req, res) => {
       success: false,
       message: 'Server error'
     });
+  }
+});
+
+// @route   GET /api/posts/:id
+// @desc    Get a single post by ID (with author and comments populated)
+// @access  Private
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate('author', 'username firstName lastName profilePicture')
+      .populate('comments.user', 'username firstName lastName profilePicture');
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+    res.json({ success: true, post });
+  } catch (error) {
+    console.error('Get post by ID error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

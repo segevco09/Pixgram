@@ -308,19 +308,47 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
 
   const handleComment = async (e) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
+
+    // 1. Don't do anything if the input is empty or just spaces
+    const trimmedComment = commentText.trim();
+    if (!trimmedComment) return;
+
+    // 2. Create a temporary comment object for instant UI feedback
+    const tempComment = {
+      _id: `temp-${Date.now()}`, // Unique temporary ID
+      user: user,                // The current user object
+      content: trimmedComment,   // The comment text
+      // Optionally: createdAt: new Date().toISOString()
+    };
+
+    // 3. Add the temporary comment to the comments list immediately
+    setComments(prevComments => [...prevComments, tempComment]);
+
+    // 4. Clear the input field right away so the user can type again
+    setCommentText('');
 
     try {
+      // 5. Send the comment to the backend
       const response = await axios.post(`/api/posts/${post._id}/comments`, {
-        content: commentText.trim()
+        content: trimmedComment
       });
-      
+
       if (response.data.success) {
-        setComments([...comments, response.data.comment]);
-        setCommentText('');
+        // 6. Fetch the latest comments from the backend to ensure accuracy
+        const updatedPost = await axios.get(`/api/posts/${post._id}`);
+        setComments(updatedPost.data.post.comments);
+        // (Optional) If you want to update the parent post state, do it here
+        // if (onPostUpdated) onPostUpdated(updatedPost.data.post);
+      } else {
+        // 7. If the backend says it failed, remove the temporary comment
+        setComments(prevComments => prevComments.filter(c => c._id !== tempComment._id));
+        alert('Failed to add comment.');
       }
     } catch (error) {
+      // 8. If there was a network or server error, remove the temporary comment and show an error
+      setComments(prevComments => prevComments.filter(c => c._id !== tempComment._id));
       console.error('Error adding comment:', error);
+      alert('Error adding comment');
     }
   };
 
