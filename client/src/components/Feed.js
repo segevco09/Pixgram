@@ -296,6 +296,7 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
 
     try {
       await axios.post(`/api/posts/${post._id}/like`);
+      console.log("blablabla")
       // Optionally, you can update state again if server returns new values
     } catch (error) {
       // If error, revert UI
