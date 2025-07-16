@@ -67,4 +67,14 @@ router.get('/user/:userId', auth, authController.getUserById);
 // @access  Private
 router.get('/users', auth, authController.getAllUsers);
 
+// @route   PUT /api/auth/bio
+// @desc    Update user bio
+// @access  Private
+router.put('/bio', auth, authController.updateBio);
+
+// @route   PUT /api/auth/profile-picture
+// @desc    Update user profile picture
+// @access  Private
+router.put('/profile-picture', auth, upload.single('profilePicture'), authController.updateProfilePicture);
+
 module.exports = router; 
