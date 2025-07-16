@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import './Groups.css';
@@ -13,15 +13,10 @@ const Groups = () => {
     category: 'all',
     privacy: 'all'
   });
-  const [isMember, setIsMember] = useState(false);
-  const [groupPosts, setGroupPosts] = useState([]);
   const [commentText, setCommentText] = useState('');
 
-  useEffect(() => {
-    fetchGroups();
-  }, [searchFilters]);
-
-  const fetchGroups = async () => {
+  // Best practice: useCallback for fetchGroups
+  const fetchGroups = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (searchFilters.search) params.append('search', searchFilters.search);
@@ -35,41 +30,24 @@ const Groups = () => {
     } catch (error) {
       console.error('Error fetching groups:', error);
     }
-  };
+  }, [searchFilters]);
+
+  useEffect(() => {
+    fetchGroups();
+  }, [searchFilters, fetchGroups]);
 
   const handleFilterChange = (key, value) => {
     setSearchFilters(prev => ({ ...prev, [key]: value }));
   };
 
+  // Remove unused groupPosts, handleComment
   const handleGroupClick = async (groupId, isMemberLocal) => {
-    setIsMember(isMemberLocal); // Set immediately!
-    setGroupPosts([]);
     setSelectedGroup(null);
-
     // Fetch group details
     const groupRes = await axios.get(`/api/groups/${groupId}`);
     const group = groupRes.data.group;
     setSelectedGroup(group);
-
-    // Optionally, you can still verify membership with the API in the background
-    // but for instant UI, use the local value
-
-    // Only fetch posts if member
-    if (isMemberLocal) {
-      const postsRes = await axios.get(`/api/groups/${groupId}/posts`, { withCredentials: true });
-      const posts = postsRes.data.posts;
-      setGroupPosts(posts);
-    }
-  };
-
-  const handleComment = async (e) => {
-    e.preventDefault();
-    if (!commentText.trim()) return;
-    // Add your logic to post the comment to the backend here
-    // Example:
-    // await axios.post(`/api/groups/${groupId}/posts/${postId}/comments`, { content: commentText });
-    setCommentText('');
-    // Optionally refresh comments here
+    // Only fetch posts if member (handled in modal if needed)
   };
 
   return (
@@ -126,20 +104,16 @@ const Groups = () => {
 
       {/* Groups Grid */}
       <div className="groups-grid">
-        {groups.map(group => {
-          const isMember = group.members?.some(
-            m => (m.user?._id || m.user) === user._id
-          );
-          return (
-            <GroupCard 
-              key={group._id} 
-              group={group} 
-              currentUser={user}
-              onGroupUpdate={fetchGroups}
-              onViewGroup={() => handleGroupClick(group._id, isMember)}
-            />
-          );
-        })}
+        {groups.map(group => (
+          <GroupCard 
+            key={group._id} 
+            group={group} 
+            currentUser={user}
+            isMember={group.isMember} // pass as prop
+            onGroupUpdate={fetchGroups}
+            onViewGroup={() => handleGroupClick(group._id, group.isMember)}
+          />
+        ))}
       </div>
 
       {groups.length === 0 && (
@@ -161,7 +135,7 @@ const Groups = () => {
         <GroupDetailModal 
           group={selectedGroup}
           currentUser={user}
-          isMember={isMember}
+          isMember={selectedGroup.isMember} // Use selectedGroup.isMember
           onClose={() => setSelectedGroup(null)}
           onGroupUpdate={fetchGroups}
         />
@@ -170,13 +144,9 @@ const Groups = () => {
   );
 };
 
-const GroupCard = ({ group, currentUser, onGroupUpdate, onViewGroup }) => {
+const GroupCard = ({ group, currentUser, isMember, onGroupUpdate, onViewGroup }) => {
   const [isLoading, setIsLoading] = useState(false);
-
-  const isMember = group.members?.some(
-    m => (m.user?._id || m.user) === currentUser._id
-  );
-  
+  // Use isMember from parent, do not redeclare
   const isAdmin = group.admins?.includes(currentUser._id) || 
                   group.creator._id === currentUser._id;
 

@@ -17,6 +17,7 @@ const Feed = () => {
   const [editingPost, setEditingPost] = useState(null);
   const [isFetching, setIsFetching] = useState(false);
   const hasInitialFetch = useRef(false);
+  const [userGroups, setUserGroups] = useState([]);
 
   useEffect(() => {
     if (!hasInitialFetch.current) {
@@ -25,6 +26,21 @@ const Feed = () => {
       fetchMorePosts();
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchGroups = async () => {
+      try {
+        const res = await axios.get('/api/groups');
+        if (res.data.success) {
+          setUserGroups(res.data.groups.filter(g => g.isMember));
+        }
+      } catch (err) {
+        console.error('Error fetching user groups:', err);
+      }
+    };
+    fetchGroups();
+  }, [user]);
 
   const fetchMorePosts = async () => {
     if (isFetching) {
@@ -82,6 +98,7 @@ const Feed = () => {
 
       {showCreatePost && (
         <CreatePostModal 
+          userGroups={userGroups}
           onClose={() => setShowCreatePost(false)}
           onPostCreated={(newPost) => {
             setPosts([newPost, ...posts]);
@@ -128,10 +145,11 @@ const Feed = () => {
   );
 };
 
-const CreatePostModal = ({ onClose, onPostCreated }) => {
+const CreatePostModal = ({ userGroups, onClose, onPostCreated }) => {
   const [caption, setCaption] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
+  const [postTarget, setPostTarget] = useState('feed'); // 'feed' or groupId
   const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -166,13 +184,12 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
     }
 
     try {
-      console.log('Submitting post with caption:', caption);
-      console.log('Making request to:', '/api/posts');
-      console.log('Auth header:', axios.defaults.headers.common['Authorization']);
-      
-      const response = await axios.post('/api/posts', formData);
-      
-      console.log('Post response:', response.data);
+      let response;
+      if (postTarget === 'feed') {
+        response = await axios.post('/api/posts', formData);
+      } else {
+        response = await axios.post(`/api/groups/${postTarget}/posts`, formData);
+      }
       
       if (response.data.success) {
         onPostCreated(response.data.post);
@@ -195,6 +212,13 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
         </div>
         
         <form onSubmit={handleSubmit}>
+          {/* NEW: Where to post */}
+          <select value={postTarget} onChange={e => setPostTarget(e.target.value)}>
+            <option value="feed">My Feed</option>
+            {userGroups.map(group => (
+              <option key={group._id} value={group._id}>{group.name}</option>
+            ))}
+          </select>
           <textarea
             placeholder="What's happening?"
             value={caption}
