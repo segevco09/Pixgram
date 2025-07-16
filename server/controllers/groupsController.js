@@ -19,10 +19,14 @@ exports.getGroups = async (req, res) => {
       .populate('members.user', 'username firstName lastName _id')
       .sort({ createdAt: -1 });
 
-    // Add isMember field for the current user (best practice: backend computes membership)
     const userId = req.user._id.toString();
     const groupsWithMembership = groups.map(group => {
-      const isMember = group.members.some(m => m.user._id.toString() === userId);
+      const isMember = group.members.some(m => {
+        if (typeof m.user === 'object' && m.user._id) {
+          return m.user._id.toString() === userId;
+        }
+        return m.user.toString() === userId;
+      });
       const groupObj = group.toObject({ virtuals: true });
       groupObj.isMember = isMember;
       return groupObj;
@@ -112,7 +116,8 @@ exports.deleteGroup = async (req, res) => {
     if (!group.creator.equals(req.user._id)) {
       return res.status(403).json({ success: false, message: 'Only the group creator can delete this group' });
     }
-    await Group.deleteOne({ _id: req.params.id });
+    group.isActive = false;
+    await group.save();
     res.json({ success: true, message: 'Group deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -257,8 +262,10 @@ exports.createGroupPost = async (req, res) => {
     }
     const post = new Post(postData);
     await post.save();
-    await post.populate('author', 'username firstName lastName profilePicture');
-    res.status(201).json({ success: true, post });
+    const populatedPost = await Post.findById(post._id)
+      .populate('author', 'username firstName lastName profilePicture')
+      .populate('group', 'name');
+    res.status(201).json({ success: true, post: populatedPost.toJSON() });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create group post', error: error.message });
   }

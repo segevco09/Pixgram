@@ -451,7 +451,7 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
               {new Date(post.createdAt).toLocaleDateString()}
             </div>
             {/* Add group information display */}
-            {post.group && (
+            {post.group && post.group.name && (
               <div className="post-group">
                 Posted in <span className="group-name">{post.group.name}</span>
               </div>
