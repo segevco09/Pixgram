@@ -6,44 +6,32 @@ const User = require('../models/User');
 exports.getFeed = async (req, res) => {
   try {
     const userId = req.user._id;
-    // 1. Get user's friends
     const user = await User.findById(userId).select('friends');
     const friendIds = user.friends || [];
 
-    // 2. Get group IDs the user is a member of
-    const allGroups = await Group.find({}).select('_id members');
-    const groupIds = [];
-    for (const group of allGroups) {
-      if (group.isMember(userId)) {
-        groupIds.push(group._id);
-      }
-    }
+    // Get group IDs the user is a member of
+    const groups = await Group.find({ 'members.user': userId }).select('_id');
+    const groupIds = groups.map(g => g._id);
 
-    // 3. Pagination
+    // Build strict query
+    const query = {
+      $or: [
+        {
+          $and: [
+            { group: null },
+            { $or: [ { author: userId }, { author: { $in: friendIds } } ] }
+          ]
+        },
+        { group: { $in: groupIds } }
+      ]
+    };
+
+    // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // 4. Build query
-    let query;
-    if (groupIds.length > 0) {
-      query = {
-        $or: [
-          { author: userId },
-          { author: { $in: friendIds } },
-          { group: { $in: groupIds } }
-        ]
-      };
-    } else {
-      query = {
-        $or: [
-          { author: userId },
-          { author: { $in: friendIds } }
-        ]
-      };
-    }
-
-    // 5. Fetch posts
+    // Fetch posts
     const posts = await Post.find(query)
       .populate('author', 'username firstName lastName profilePicture')
       .populate('comments.user', 'username firstName lastName profilePicture')

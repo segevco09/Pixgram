@@ -105,11 +105,16 @@ groupSchema.methods.isAdmin = function(userId) {
 // Method to check if user is member
 groupSchema.methods.isMember = function(userId) {
   const userIdString = userId.toString();
-  // Fix: Check if this.members is an array before using .some()
   if (!Array.isArray(this.members)) {
     return false;
   }
-  return this.members.some(member => member.user.toString() === userIdString);
+  return this.members.some(member => {
+    // member.user can be an object or an ID
+    if (typeof member.user === 'object' && member.user._id) {
+      return member.user._id.toString() === userIdString;
+    }
+    return member.user.toString() === userIdString;
+  });
 };
 
 // Method to check if user has join request pending
