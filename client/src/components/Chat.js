@@ -615,7 +615,6 @@ function Chat() {
       <div className="chat-sidebar">
         <div className="chat-header">
           <h3>💬 Chats</h3>
-          <small>Powered by Chats Database</small>
         </div>
         
         <div className="friends-list">
@@ -647,9 +646,6 @@ function Chat() {
                   </div>
                 )}
               </div>
-              <div className="conversation-indicator">
-                {item.isConversation ? '💾' : '👤'}
-              </div>
             </div>
           ))}
           
@@ -677,7 +673,6 @@ function Chat() {
           <>
             <div className="chat-header">
               <h3>💬 {selectedFriend.name}</h3>
-              <small>Messages stored in Chats Database</small>
             </div>
 
             <div className="messages-container">
