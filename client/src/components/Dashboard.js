@@ -70,7 +70,7 @@ const Dashboard = () => {
               className={`nav-button ${activeTab === 'friends' ? 'active' : ''}`}
               onClick={() => setActiveTab('friends')}
             >
-              Find Friends
+              Friends
             </button>
             <button
               className={`nav-button ${activeTab === 'chat' ? 'active' : ''}`}

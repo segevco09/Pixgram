@@ -356,7 +356,7 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
       const response = await axios.post(`/api/posts/${post._id}/comments`, {
         content: trimmedComment
       });
-
+      
       if (response.data.success) {
         // 6. Fetch the latest comments from the backend to ensure accuracy
         const updatedPost = await axios.get(`/api/posts/${post._id}`);

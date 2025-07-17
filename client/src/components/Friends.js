@@ -16,7 +16,6 @@ const Friends = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [creatingTestUsers, setCreatingTestUsers] = useState(false);
   
   // User profile viewing states
   const [viewingUserId, setViewingUserId] = useState(null);
@@ -251,36 +250,6 @@ const Friends = () => {
     setSelectedPost(null);
   };
 
-  const createTestUsers = async () => {
-    setCreatingTestUsers(true);
-    try {
-      const response = await axios.post('/api/test/create-users');
-      if (response.data.success) {
-        alert('Test users created! You can now search for: John, Jane, Bob, Alice, or Test');
-        if (activeTab === 'search') {
-          searchUsers(); // Refresh search if we're on search tab
-        }
-      }
-    } catch (error) {
-      console.error('Error creating test users:', error);
-      alert('Error creating test users: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setCreatingTestUsers(false);
-    }
-  };
-
-  const testDebugEndpoint = async () => {
-    try {
-      console.log('Testing debug endpoint...');
-      const response = await axios.get('/api/friends/debug');
-      console.log('Debug endpoint response:', response.data);
-      alert(`Debug Success! Total users: ${response.data.totalUsers}, Current user: ${response.data.currentUserId}`);
-    } catch (error) {
-      console.error('Debug endpoint failed:', error);
-      alert('Debug endpoint failed: ' + (error.response?.data?.message || error.message));
-    }
-  };
-
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
       if (activeTab === 'search') {
@@ -375,19 +344,6 @@ const Friends = () => {
                   className="search-input"
                 />
               </div>
-              <button 
-                onClick={createTestUsers}
-                disabled={creatingTestUsers}
-                className="create-test-users-btn"
-              >
-                {creatingTestUsers ? 'Creating...' : 'Create Test Users'}
-              </button>
-              <button 
-                onClick={testDebugEndpoint}
-                className="debug-btn"
-              >
-                Debug API
-              </button>
             </div>
 
             {loading && <div className="loading">Searching...</div>}

@@ -105,14 +105,14 @@ const Groups = () => {
       {/* Groups Grid */}
       <div className="groups-grid">
         {groups.map(group => (
-          <GroupCard 
-            key={group._id} 
-            group={group} 
-            currentUser={user}
+            <GroupCard 
+              key={group._id} 
+              group={group} 
+              currentUser={user}
             isMember={group.isMember} // pass as prop
-            onGroupUpdate={fetchGroups}
+              onGroupUpdate={fetchGroups}
             onViewGroup={() => handleGroupClick(group._id, group.isMember)}
-          />
+            />
         ))}
       </div>
 

@@ -28,7 +28,7 @@ const fileFilter = (req, file, cb) => {
     cb(new Error('Only image and video files are allowed'), false);
   }
 };
-const upload = multer({
+const upload = multer({ 
   storage,
   fileFilter,
   limits: { fileSize: 50 * 1024 * 1024 }

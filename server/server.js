@@ -67,7 +67,6 @@ app.use('/api/groups', require('./routes/groups'));
 app.use('/api/friends', require('./routes/friends'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/feed', require('./routes/feed'));
-app.use('/api/test', require('./routes/test'));
 
 // Serve static files from React app (only if build directory exists)
 const buildPath = path.join(__dirname, 'client/build');
@@ -95,7 +94,6 @@ if (fs.existsSync(buildPath)) {
         '/api/groups/*',
         '/api/messages/*',
         '/api/feed/*',
-        '/api/test/*'
       ]
     });
   });

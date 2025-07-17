@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import io from 'socket.io-client';
 import './Chat.css';
+import axios from 'axios';
 
 function Chat() {
   const { user } = useAuth();
@@ -211,28 +212,35 @@ function Chat() {
     }
    }, [searchParams, friends, selectedFriend]);
 
-  // Load friends list
+  // 1. Load friends first
   useEffect(() => {
-    console.log('🔄 Chat component effect triggered');
-    console.log('👤 User state:', user);
-    
     if (user) {
-      console.log('🔄 User is available, loading friends and conversations...');
-      console.log('👤 Current user details:', {
-        id: user.id,
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        username: user.username,
-        fullName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.username
-      });
-      
       loadFriends();
-      loadConversations();
-    } else {
-      console.log('⚠️ User not available yet');
     }
   }, [user]);
+
+  // 2. Load conversations after friends
+  useEffect(() => {
+    if (user && friends.length > 0) {
+      loadConversations();
+    }
+  }, [user, friends]);
+
+  // 3. Merge for display
+  const getDisplayList = () => {
+    // Map friends to display items
+    return friends.map(friend => {
+      const conv = conversations.find(c => c.otherUserId === friend.id);
+      return {
+        id: friend.id,
+        name: friend.name,
+        lastMessage: conv ? conv.lastMessage.content : 'No messages yet',
+        lastMessageTime: conv ? conv.lastMessage.createdAt : null,
+        unreadCount: conv ? conv.unreadCount : 0,
+        isConversation: !!conv
+      };
+    });
+  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -263,131 +271,34 @@ function Chat() {
   const loadFriends = async () => {
     try {
       const token = localStorage.getItem('token');
-      console.log('🔍 Loading friends for chat...');
-      
-      // First try to load friends
-      const friendsResponse = await fetch('http://localhost:5000/api/friends', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.get('/api/friends', {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      let friendsList = [];
-      if (friendsResponse.ok) {
-        const friendsData = await friendsResponse.json();
-        console.log('👥 Loaded friends:', friendsData.friends);
-        friendsList = friendsData.friends || [];
+      if (response.data.success) {
+        setFriends(
+          (response.data.friends || []).map(u => ({
+            id: u._id,
+            name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username,
+            username: u.username,
+            firstName: u.firstName,
+            lastName: u.lastName
+          }))
+        );
       }
-      
-      // Always load all users as well (for chat purposes)
-      console.log('👥 Loading all registered users for chat...');
-      await loadAllUsers();
-      
-      // If we have friends, we could prioritize them later
-      if (friendsList.length > 0) {
-        console.log(`✅ Found ${friendsList.length} friends`);
-      }
-      
     } catch (error) {
       console.error('Error loading friends:', error);
-      // Fallback to loading all users
-      await loadAllUsers();
-    }
-  };
-
-  const loadAllUsers = async () => {
-    try {
-      console.log('👥 Loading all registered users...');
-      console.log('👤 Current user ID:', user?.id);
-      
-      // Get users from the test endpoint (no auth needed)
-      const response = await fetch('http://localhost:5000/api/test/users');
-      
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('👥 Raw API response:', data);
-        console.log('👥 Users count:', data.users?.length);
-        
-        if (data.users && data.users.length > 0) {
-          // Convert users to friends format and exclude current user
-          const currentUserId = (user?._id || user?.id)?.toString();
-          console.log('🔍 Current user for filtering:', {
-            userId: currentUserId,
-            userObject: user,
-            userIdType: typeof currentUserId
-          });
-          
-          const usersAsFriends = data.users
-            .filter(u => {
-              const userIdString = u._id?.toString();
-              const isCurrentUserById = userIdString === currentUserId;
-              
-              // Additional safety checks in case ID comparison fails
-              const isCurrentUserByUsername = u.username === user?.username;
-              const isCurrentUserByEmail = u.email && user?.email && u.email === user.email;
-              
-              const isCurrentUser = isCurrentUserById || isCurrentUserByUsername || isCurrentUserByEmail;
-              
-              console.log(`🔍 User ${u.username} (${userIdString}) - Current user: ${isCurrentUser} (comparing with ${currentUserId})`);
-              console.log(`🔍 Comparison details:`, {
-                userIdString,
-                currentUserId,
-                isCurrentUserById,
-                isCurrentUserByUsername,
-                isCurrentUserByEmail,
-                finalResult: isCurrentUser,
-                userIdType: typeof userIdString,
-                currentUserIdType: typeof currentUserId
-              });
-              
-              return !isCurrentUser;
-            })
-            .map(u => ({
-              id: u._id,
-              name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username,
-              username: u.username,
-              firstName: u.firstName,
-              lastName: u.lastName
-            }));
-          
-          console.log('✅ Final users for chat:', usersAsFriends);
-          console.log(`📊 Setting ${usersAsFriends.length} users in chat list`);
-          setFriends(usersAsFriends);
-          
-          if (usersAsFriends.length === 0) {
-            console.log('⚠️ No other users found to chat with');
-          }
-        } else {
-          console.log('⚠️ No users array in response or empty array');
-        }
-      } else {
-        console.error('❌ Failed to load users, status:', response.status);
-        const errorText = await response.text();
-        console.error('❌ Error response:', errorText);
-      }
-    } catch (error) {
-      console.error('❌ Error loading all users:', error);
-      console.error('❌ Error details:', error.message);
-      console.error('❌ Stack trace:', error.stack);
     }
   };
 
   const loadConversations = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/messages/conversations', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.get('/api/messages/conversations', {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('💬 Loaded conversations from Chats DB:', data.conversations);
-        setConversations(data.conversations || []);
+      if (response.data.success) {
+        setConversations(response.data.conversations || []);
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -402,14 +313,12 @@ function Chat() {
       const token = localStorage.getItem('token');
       console.log(`📖 Loading conversation with user ${friendId} from Chats DB`);
       
-      const response = await fetch(`http://localhost:5000/api/messages/conversation/${friendId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await axios.get(`/api/messages/conversation/${friendId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      if (response.data.success) {
+        const data = response.data;
         console.log(`📖 Loaded ${data.messages.length} messages from Chats DB:`, data.messages);
         
         // Convert messages to expected format
@@ -609,16 +518,11 @@ function Chat() {
         hasToken: !!token
       });
       
-      const response = await fetch(`http://localhost:5000/api/messages/edit/${messageId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
+      const response = await axios.put(`/api/messages/edit/${messageId}`, requestData, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (response.ok) {
+      if (response.data.success) {
         // Update local messages
         setMessages(prev => prev.map(msg => 
           msg._id === messageId 
@@ -639,9 +543,9 @@ function Chat() {
         
         console.log('✅ Message edited successfully');
       } else {
-        const errorData = await response.text();
+        const errorData = response.data;
         console.error('❌ Failed to edit message:', response.status, errorData);
-        alert(`Failed to edit message: ${response.status} ${errorData}`);
+        alert(`Failed to edit message: ${response.status} ${errorData.message}`);
       }
     } catch (error) {
       console.error('❌ Error editing message:', error);
@@ -666,18 +570,14 @@ function Chat() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/messages/${message._id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const response = await axios.delete(`/api/messages/${message._id}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        data: {
           otherUserId: selectedFriend.id
-        })
+        }
       });
 
-      if (response.ok) {
+      if (response.data.success) {
         // Remove message from local state
         setMessages(prev => prev.filter(msg => msg._id !== message._id));
         
@@ -708,47 +608,6 @@ function Chat() {
       hour: '2-digit', 
       minute: '2-digit' 
     });
-  };
-
-  const getDisplayList = () => {
-    // Get current user ID for filtering
-    const currentUserId = (user?._id || user?.id)?.toString();
-    
-    // Filter out self-conversations
-    const filteredConversations = conversations.filter(conv => {
-      const otherUserIdString = conv.otherUserId?.toString();
-      const isSelfConversation = otherUserIdString === currentUserId;
-      
-      console.log(`🔍 Conversation filtering: ${conv.otherUserName} (${otherUserIdString}) - Self conversation: ${isSelfConversation} (comparing with ${currentUserId})`);
-      
-      return !isSelfConversation;
-    });
-    
-    // Combine friends and filtered conversations, prioritizing conversations
-    const conversationUserIds = new Set(filteredConversations.map(conv => conv.otherUserId));
-    const friendsNotInConversations = friends.filter(friend => !conversationUserIds.has(friend.id));
-    
-    const conversationItems = filteredConversations.map(conv => ({
-      id: conv.otherUserId,
-      name: conv.otherUserName,
-      lastMessage: conv.lastMessage.content,
-      lastMessageTime: conv.lastMessage.createdAt,
-      unreadCount: conv.unreadCount,
-      isConversation: true
-    }));
-
-    const friendItems = friendsNotInConversations.map(friend => ({
-      id: friend.id,
-      name: friend.name,
-      lastMessage: 'No messages yet',
-      lastMessageTime: null,
-      unreadCount: 0,
-      isConversation: false
-    }));
-
-    console.log(`📊 Display list: ${conversationItems.length} conversations + ${friendItems.length} friends = ${conversationItems.length + friendItems.length} total`);
-
-    return [...conversationItems, ...friendItems];
   };
 
   return (
@@ -796,48 +655,9 @@ function Chat() {
           
           {getDisplayList().length === 0 && (
             <div className="no-friends">
-              <p>No users loaded yet</p>
-              <small>Registered users should appear here</small>
+              <p>Loading friends...</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-                <button 
-                  onClick={() => {
-                    console.log('🔄 Debug - Current state:');
-                    console.log('Friends array:', friends);
-                    console.log('Friends length:', friends.length);
-                    console.log('Conversations:', conversations);
-                    console.log('User:', user);
-                    console.log('User ID:', user?.id);
-                    loadFriends();
-                  }}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#667eea',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  🔄 Reload Users
-                </button>
-                
-                <button 
-                  onClick={() => {
-                    console.log('👥 Force loading all users...');
-                    console.log('Current user ID:', user?.id);
-                    loadAllUsers();
-                  }}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  👥 Force Load Users
-                </button>
+              
                 
                 <div style={{ 
                   fontSize: '12px', 
@@ -845,7 +665,6 @@ function Chat() {
                   marginTop: '10px',
                   textAlign: 'center'
                 }}>
-                  Friends: {friends.length} | User: {user?.username || 'Not loaded'}
                 </div>
               </div>
             </div>
@@ -981,28 +800,13 @@ function Chat() {
                 className="send-button"
                 disabled={!newMessage.trim()}
               >
-                Send to Chats DB 📤
+                Send
               </button>
             </div>
           </>
         ) : (
           <div className="no-chat-selected">
             <h3>Select a friend to start chatting</h3>
-            <p>Your messages will be stored in the Chats database</p>
-            <div className="chat-features">
-              <div className="feature">
-                <span className="feature-icon">💾</span>
-                <span>Persistent Storage</span>
-              </div>
-              <div className="feature">
-                <span className="feature-icon">⚡</span>
-                <span>Real-time Messaging</span>
-              </div>
-              <div className="feature">
-                <span className="feature-icon">🔒</span>
-                <span>Secure & Private</span>
-              </div>
-            </div>
           </div>
         )}
       </div>
