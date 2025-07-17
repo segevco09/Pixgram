@@ -351,6 +351,9 @@ const CreateGroupModal = ({ onClose, onGroupCreated }) => {
 };
 
 const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate }) => {
+  console.log('currentUser:', currentUser);
+  console.log('group.creator:', group.creator);
+  console.log('isCreator:', String(group.creator?._id) === String(currentUser?._id));
   console.log('GroupDetailModal isMember:', isMember);
   const [caption, setCaption] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
@@ -364,9 +367,12 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
     privacy: group.privacy,
     category: group.category
   });
+  const [selectedMemberId, setSelectedMemberId] = useState('');
 
-  const isAdmin = group.admins?.includes(currentUser._id) || group.creator._id === currentUser._id;
-  const isCreator = group.creator._id === currentUser._id;
+  const currentUserId = currentUser._id || currentUser.id;
+  const isAdmin = group.admins?.map(a => String(a)).includes(String(currentUserId)) ||
+                String(group.creator._id) === String(currentUserId);
+  const isCreator = String(group.creator._id) === String(currentUserId);
 
   useEffect(() => {
     // This useEffect is removed as per the edit hint.
@@ -506,6 +512,46 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
             <form onSubmit={handleUpdate} className="edit-form">
               {/* ...edit form fields as before... */}
             </form>
+          )}
+
+          {isCreator && (
+            <div className="remove-member-section">
+              <h4>Remove a Member</h4>
+              <select
+                value={selectedMemberId}
+                onChange={e => setSelectedMemberId(e.target.value)}
+              >
+                <option value="">Select a member</option>
+                {group.members
+                  .filter(m => m.user._id !== currentUser._id) // Don't show creator
+                  .map(m => (
+                    <option key={m.user._id} value={m.user._id}>
+                      {m.user.firstName} {m.user.lastName} ({m.user.username})
+                    </option>
+                  ))}
+              </select>
+              <button
+                onClick={async () => {
+                  if (!selectedMemberId) return;
+                  if (!window.confirm('Remove this member from the group?')) return;
+                  try {
+                    const res = await axios.post(`/api/groups/${group._id}/remove/${selectedMemberId}`);
+                    if (res.data.success) {
+                      alert('Member removed!');
+                      onGroupUpdate(); // Refresh group data
+                      setSelectedMemberId('');
+                    } else {
+                      alert(res.data.message);
+                    }
+                  } catch (err) {
+                    alert('Error removing member');
+                  }
+                }}
+                disabled={!selectedMemberId}
+              >
+                Remove
+              </button>
+            </div>
           )}
 
           {isMember ? (

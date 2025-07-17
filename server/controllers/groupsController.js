@@ -278,3 +278,32 @@ exports.isMember = async (req, res) => {
   const isMember = group.members.some(m => m.user.toString() === req.user.id.toString());
   res.json({ member: isMember });
 };
+
+// Remove a member (creator only)
+exports.removeMember = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) {
+      return res.status(404).json({ success: false, message: 'Group not found' });
+    }
+    // Only creator can remove members
+    if (!group.creator.equals(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Only the group creator can remove members' });
+    }
+    const userId = req.params.userId;
+    if (!group.isMember(userId)) {
+      return res.status(400).json({ success: false, message: 'User is not a member of this group' });
+    }
+    // Prevent creator from removing themselves
+    if (group.creator.equals(userId)) {
+      return res.status(400).json({ success: false, message: 'Creator cannot remove themselves' });
+    }
+    group.removeMember(userId);
+    // Also remove from admins if present
+    group.admins = group.admins.filter(admin => admin.toString() !== userId);
+    await group.save();
+    res.json({ success: true, message: 'Member removed successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

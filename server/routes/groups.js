@@ -47,6 +47,9 @@ router.post('/:id/leave', auth, groupController.leaveGroup);
 router.post('/:id/approve/:userId', auth, groupController.approveJoinRequest);
 router.post('/:id/reject/:userId', auth, groupController.rejectJoinRequest);
 
+// Remove a member (creator only)
+router.post('/:id/remove/:userId', auth, groupController.removeMember);
+
 // Group posts (members only, paginated)
 router.get('/:id/posts', auth, groupController.getGroupPosts);
 router.post('/:groupId/posts', auth, upload.single('media'), groupController.createGroupPost);
