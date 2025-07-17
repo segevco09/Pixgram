@@ -53,7 +53,7 @@ const groupSchema = new mongoose.Schema({
   }],
   privacy: {
     type: String,
-    enum: ['public', 'private', 'closed'],
+    enum: ['public', 'private'],
     default: 'public'
   },
   category: {

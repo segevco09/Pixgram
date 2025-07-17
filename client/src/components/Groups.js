@@ -14,6 +14,7 @@ const Groups = () => {
     privacy: 'all'
   });
   const [commentText, setCommentText] = useState('');
+  const [activeTab, setActiveTab] = useState('groups'); // 'groups', 'requests', 'search'
 
   // Best practice: useCallback for fetchGroups
   const fetchGroups = useCallback(async () => {
@@ -68,63 +69,121 @@ const Groups = () => {
         </button>
       </div>
 
-      {/* Advanced Search */}
-      <div className="search-section">
-        <div className="search-filters">
-          <input
-            type="text"
-            placeholder="Search groups by name or description..."
-            value={searchFilters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            className="search-input"
-          />
-          
-          <select
-            value={searchFilters.category}
-            onChange={(e) => handleFilterChange('category', e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">All Categories</option>
-            <option value="technology">Technology</option>
-            <option value="sports">Sports</option>
-            <option value="music">Music</option>
-            <option value="art">Art</option>
-            <option value="education">Education</option>
-            <option value="business">Business</option>
-            <option value="gaming">Gaming</option>
-            <option value="other">Other</option>
-          </select>
+      <div className="groups-tabs">
+        <button
+          className={activeTab === 'groups' ? 'active' : ''}
+          onClick={() => setActiveTab('groups')}
+        >
+          Groups
+        </button>
+        <button
+          className={activeTab === 'requests' ? 'active' : ''}
+          onClick={() => setActiveTab('requests')}
+        >
+          Requests
+        </button>
+      </div>
 
-          <select
-            value={searchFilters.privacy}
-            onChange={(e) => handleFilterChange('privacy', e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">All Privacy Types</option>
-            <option value="public">Public</option>
-            <option value="private">Private</option>
-            <option value="closed">Closed</option>
-          </select>
+      {activeTab === 'groups' && (
+        <div>
+          {/* Advanced Search */}
+          <div className="search-section">
+            <div className="search-filters">
+              <input
+                type="text"
+                placeholder="Search groups by name or description..."
+                value={searchFilters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                className="search-input"
+              />
+              
+              <select
+                value={searchFilters.category}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">All Categories</option>
+                <option value="technology">Technology</option>
+                <option value="sports">Sports</option>
+                <option value="music">Music</option>
+                <option value="art">Art</option>
+                <option value="education">Education</option>
+                <option value="business">Business</option>
+                <option value="gaming">Gaming</option>
+                <option value="other">Other</option>
+              </select>
+
+              <select
+                value={searchFilters.privacy}
+                onChange={(e) => handleFilterChange('privacy', e.target.value)}
+                className="filter-select"
+              >
+                <option value="all">All Privacy Types</option>
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Groups Grid */}
+          <div className="groups-grid">
+            {groups.map(group => (
+                <GroupCard 
+                  key={group._id} 
+                  group={group} 
+                  currentUser={user}
+                isMember={group.isMember} // pass as prop
+                  onGroupUpdate={fetchGroups}
+                onViewGroup={() => handleGroupClick(group._id, group.isMember)}
+                />
+            ))}
+          </div>
+
+          {groups.length === 0 && (
+            <div className="no-groups">
+              <p>No groups found matching your criteria.</p>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Groups Grid */}
-      <div className="groups-grid">
-        {groups.map(group => (
-            <GroupCard 
-              key={group._id} 
-              group={group} 
-              currentUser={user}
-            isMember={group.isMember} // pass as prop
-              onGroupUpdate={fetchGroups}
-            onViewGroup={() => handleGroupClick(group._id, group.isMember)}
-            />
-        ))}
-      </div>
-
-      {groups.length === 0 && (
-        <div className="no-groups">
-          <p>No groups found matching your criteria.</p>
+      {activeTab === 'requests' && (
+        <div>
+          {/* Render join requests for groups the user created */}
+          {groups
+            .filter(group => String(group.creator._id) === String(user._id || user.id))
+            .map(group => (
+              <div key={group._id} className="group-requests-section">
+                <h4>{group.name} – Join Requests</h4>
+                {group.joinRequests && group.joinRequests.length > 0 ? (
+                  <ul className="group-requests-list">
+                    {group.joinRequests.map(req => (
+                      <li key={req.user._id}>
+                        <span>
+                          {req.user && typeof req.user === 'object'
+                            ? `${req.user.firstName} ${req.user.lastName} (${req.user.username})`
+                            : req.user}
+                          {req.message && <> – <em>{req.message}</em></>}
+                        </span>
+                        <span className="group-requests-actions">
+                          <button onClick={async () => {
+                            await axios.post(`/api/groups/${group._id}/approve/${req.user._id}`);
+                            fetchGroups();
+                          }}>Approve</button>
+                          <button onClick={async () => {
+                            await axios.post(`/api/groups/${group._id}/reject/${req.user._id}`);
+                            fetchGroups();
+                          }}>Reject</button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No join requests for this group.</p>
+                )}
+              </div>
+            ))
+          }
         </div>
       )}
 
@@ -337,10 +396,10 @@ const CreateGroupModal = ({ onClose, onGroupCreated }) => {
             <select
               value={formData.privacy}
               onChange={(e) => handleChange('privacy', e.target.value)}
+              className="filter-select"
             >
               <option value="public">Public - Anyone can join</option>
               <option value="private">Private - Requires approval</option>
-              <option value="closed">Closed - Invite only</option>
             </select>
           </div>
 
@@ -356,11 +415,8 @@ const CreateGroupModal = ({ onClose, onGroupCreated }) => {
   );
 };
 
-const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate }) => {
-  console.log('currentUser:', currentUser);
-  console.log('group.creator:', group.creator);
-  console.log('isCreator:', String(group.creator?._id) === String(currentUser?._id));
-  console.log('GroupDetailModal isMember:', isMember);
+const GroupDetailModal = (props) => {
+  // All hooks at the top
   const [caption, setCaption] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -368,31 +424,18 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
   const [posting, setPosting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-    name: group.name,
-    description: group.description,
-    privacy: group.privacy,
-    category: group.category
+    name: props.group.name,
+    description: props.group.description,
+    privacy: props.group.privacy,
+    category: props.group.category
   });
-  const [selectedMemberId, setSelectedMemberId] = useState('');
 
-  const currentUserId = currentUser._id || currentUser.id;
-  const isAdmin = group.admins?.map(a => String(a)).includes(String(currentUserId)) ||
-                String(group.creator._id) === String(currentUserId);
-  const isCreator = String(group.creator._id) === String(currentUserId);
+  const currentUserId = props.currentUser._id || props.currentUser.id;
+  const isAdmin = props.group.admins?.map(a => String(a)).includes(String(currentUserId)) ||
+                String(props.group.creator._id) === String(currentUserId);
+  const isCreator = String(props.group.creator._id) === String(currentUserId);
 
-  useEffect(() => {
-    // This useEffect is removed as per the edit hint.
-    // fetchGroupPosts(); 
-  }, [group._id]);
 
-  const fetchGroupPosts = async () => {
-    try {
-      const response = await axios.get(`/api/groups/${group._id}/posts`);
-      if (response.data.success) setGroupPosts(response.data.posts);
-    } catch (error) {
-      console.error('Error fetching group posts:', error);
-    }
-  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -421,7 +464,7 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
     if (selectedFile) formData.append('media', selectedFile);
 
     try {
-      const response = await axios.post(`/api/groups/${group._id}/posts`, formData);
+      const response = await axios.post(`/api/groups/${props.group._id}/posts`, formData);
       if (response.data.success) {
         setGroupPosts([response.data.post, ...groupPosts]);
         setCaption('');
@@ -442,10 +485,10 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.put(`/api/groups/${group._id}`, editData);
+      const response = await axios.put(`/api/groups/${props.group._id}`, editData);
       if (response.data.success) {
         alert('Group updated successfully!');
-        onGroupUpdate();
+        props.onGroupUpdate();
         setIsEditing(false);
       }
     } catch (error) {
@@ -456,11 +499,11 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
       try {
-        const response = await axios.delete(`/api/groups/${group._id}`);
+        const response = await axios.delete(`/api/groups/${props.group._id}`);
         if (response.data.success) {
           alert('Group deleted successfully!');
-          onGroupUpdate();
-          onClose();
+          props.onGroupUpdate();
+          props.onClose();
         }
       } catch (error) {
         alert('Error deleting group: ' + (error.response?.data?.message || error.message));
@@ -469,11 +512,11 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={props.onClose}>
       <div className="modal-content large" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{group.name}</h3>
-          <button className="close-button" onClick={onClose}>×</button>
+          <h3>{props.group.name}</h3>
+          <button className="close-button" onClick={props.onClose}>×</button>
         </div>
 
         <div className="group-detail-content">
@@ -482,26 +525,26 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
               <div className="group-stats">
                 <div className="stat-item">
                   <span className="stat-label">Members:</span>
-                  <span className="stat-value">{group.memberCount || 0}</span>
+                  <span className="stat-value">{props.group.memberCount || 0}</span>
                 </div>
                 <div className="stat-item">
                   <span className="stat-label">Category:</span>
-                  <span className="stat-value">{group.category}</span>
+                  <span className="stat-value">{props.group.category}</span>
                 </div>
                 <div className="stat-item">
                   <span className="stat-label">Privacy:</span>
-                  <span className="stat-value">{group.privacy}</span>
+                  <span className="stat-value">{props.group.privacy}</span>
                 </div>
               </div>
-              {group.description && (
+              {props.group.description && (
                 <div className="group-description-full">
                   <h4>Description</h4>
-                  <p>{group.description}</p>
+                  <p>{props.group.description}</p>
                 </div>
               )}
               <div className="group-creator-info">
                 <h4>Creator</h4>
-                <p>{group.creator.firstName} {group.creator.lastName}</p>
+                <p>{props.group.creator.firstName} {props.group.creator.lastName}</p>
               </div>
               {isAdmin && (
                 <div className="admin-actions">
@@ -516,106 +559,59 @@ const GroupDetailModal = ({ group, currentUser, isMember, onClose, onGroupUpdate
             </div>
           ) : (
             <form onSubmit={handleUpdate} className="edit-form">
-              {/* ...edit form fields as before... */}
-            </form>
-          )}
-
-          {isCreator && (
-            <div className="remove-member-section">
-              <h4>Remove a Member</h4>
-              <select
-                value={selectedMemberId}
-                onChange={e => setSelectedMemberId(e.target.value)}
-              >
-                <option value="">Select a member</option>
-                {group.members
-                  .filter(m => m.user._id !== currentUser._id) // Don't show creator
-                  .map(m => (
-                    <option key={m.user._id} value={m.user._id}>
-                      {m.user.firstName} {m.user.lastName} ({m.user.username})
-                    </option>
-                  ))}
-              </select>
-              <button
-                onClick={async () => {
-                  if (!selectedMemberId) return;
-                  if (!window.confirm('Remove this member from the group?')) return;
-                  try {
-                    const res = await axios.post(`/api/groups/${group._id}/remove/${selectedMemberId}`);
-                    if (res.data.success) {
-                      alert('Member removed!');
-                      onGroupUpdate(); // Refresh group data
-                      setSelectedMemberId('');
-                    } else {
-                      alert(res.data.message);
-                    }
-                  } catch (err) {
-                    alert('Error removing member');
-                  }
-                }}
-                disabled={!selectedMemberId}
-              >
-                Remove
-              </button>
-            </div>
-          )}
-
-          {isMember ? (
-            <>
-              {/* Post form */}
-              <form onSubmit={handlePostSubmit} className="group-post-form">
-                <textarea
-                  placeholder="What's happening in this group?"
-                  value={caption}
-                  onChange={e => setCaption(e.target.value)}
-                  rows="3"
-                  disabled={posting}
-                />
+              <div className="form-group">
+                <label>Group Name *</label>
                 <input
-                  type="file"
-                  onChange={handleFileSelect}
-                  accept="image/*,video/*"
-                  disabled={posting}
+                  type="text"
+                  value={editData.name}
+                  onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter group name"
+                  required
                 />
-                {filePreview && (
-                  <div className="file-preview">
-                    {filePreview.type === 'image' ? (
-                      <img src={filePreview.url} alt="Preview" />
-                    ) : (
-                      <video src={filePreview.url} controls />
-                    )}
-                  </div>
-                )}
-                <button type="submit" disabled={posting}>
-                  {posting ? 'Posting...' : 'Share Post'}
-                </button>
-              </form>
-
-              {/* Feed */}
-              <div className="group-posts-feed">
-                {groupPosts.length === 0 ? (
-                  <p>No posts in this group yet.</p>
-                ) : (
-                  groupPosts.map(post => (
-                    <div key={post._id} className="group-post-card">
-                      <h4>{post.author?.username}</h4>
-                      <p className="feed-post-caption">{post.caption}</p>
-                      {post.media?.url && (
-                        post.media.type === 'image' ? (
-                          <img src={post.media.url} alt="Group Post" />
-                        ) : (
-                          <video src={post.media.url} controls />
-                        )
-                      )}
-                    </div>
-                  ))
-                )}
               </div>
-            </>
-          ) : (
-            <div className="not-member-message">
-              <p>You must join this group to see and post content.</p>
-            </div>
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  value={editData.description}
+                  onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe your group..."
+                  rows="3"
+                />
+              </div>
+              <div className="form-group">
+                <label>Category</label>
+                <select
+                  value={editData.category}
+                  onChange={(e) => setEditData(prev => ({ ...prev, category: e.target.value }))}
+                >
+                  <option value="technology">Technology</option>
+                  <option value="sports">Sports</option>
+                  <option value="music">Music</option>
+                  <option value="art">Art</option>
+                  <option value="education">Education</option>
+                  <option value="business">Business</option>
+                  <option value="gaming">Gaming</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Privacy</label>
+                <select
+                  value={editData.privacy}
+                  onChange={(e) => setEditData(prev => ({ ...prev, privacy: e.target.value }))}
+                  className="filter-select"
+                >
+                  <option value="public">Public - Anyone can join</option>
+                  <option value="private">Private - Requires approval</option>
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setIsEditing(false)}>Cancel</button>
+                <button type="submit" disabled={posting}>
+                  {posting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           )}
         </div>
       </div>

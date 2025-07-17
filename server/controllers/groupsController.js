@@ -17,6 +17,7 @@ exports.getGroups = async (req, res) => {
     const groups = await Group.find(query)
       .populate('creator', 'username firstName lastName')
       .populate('members.user', 'username firstName lastName _id')
+      .populate('joinRequests.user', 'username firstName lastName _id')
       .sort({ createdAt: -1 });
 
     const userId = req.user._id.toString();
