@@ -43,11 +43,17 @@ const Groups = () => {
   // Remove unused groupPosts, handleComment
   const handleGroupClick = async (groupId, isMemberLocal) => {
     setSelectedGroup(null);
-    // Fetch group details
-    const groupRes = await axios.get(`/api/groups/${groupId}`);
-    const group = groupRes.data.group;
-    setSelectedGroup(group);
-    // Only fetch posts if member (handled in modal if needed)
+    try {
+      const groupRes = await axios.get(`/api/groups/${groupId}`);
+      const group = groupRes.data.group;
+      setSelectedGroup(group);
+    } catch (error) {
+      if (error.response && error.response.status === 403) {
+        alert('You do not have permission to view this group. Join the group to see its details.');
+      } else {
+        alert('Error loading group details.');
+      }
+    }
   };
 
   return (
