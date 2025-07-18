@@ -1,6 +1,5 @@
-// client/src/components/CommentForm.js
 import React from 'react';
-import './Comment.css'; // Reuse the comment styles
+import './Comment.css';
 
 const CommentForm = ({ commentText, setCommentText, handleComment }) => (
   <form onSubmit={handleComment} className="comment-form">

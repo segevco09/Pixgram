@@ -21,7 +21,6 @@ const Feed = () => {
 
   useEffect(() => {
     if (!hasInitialFetch.current) {
-      console.log('Feed component mounted, fetching initial posts...');
       hasInitialFetch.current = true;
       fetchMorePosts();
     }
@@ -44,7 +43,6 @@ const Feed = () => {
 
   const fetchMorePosts = async () => {
     if (isFetching) {
-      console.log('Already fetching, skipping...');
       return;
     }
     
@@ -56,14 +54,10 @@ const Feed = () => {
       console.log('Feed response for page', currentPage, ':', response.data);
       if (response.data.success) {
         setPosts(prev => {
-          console.log('Current posts count:', prev.length);
-          console.log('New posts count:', response.data.posts.length);
           
-          // Filter out duplicates based on post ID
           const existingIds = new Set(prev.map(post => post._id));
           const newPosts = response.data.posts.filter(post => !existingIds.has(post._id));
           
-          console.log('Filtered new posts count:', newPosts.length);
           return [...prev, ...newPosts];
         });
         setPage(currentPage + 1);
@@ -212,7 +206,7 @@ const CreatePostModal = ({ userGroups, onClose, onPostCreated }) => {
         </div>
         
         <form onSubmit={handleSubmit}>
-          {/* NEW: Where to post */}
+          {}
           <select value={postTarget} onChange={e => setPostTarget(e.target.value)}>
             <option value="feed">My Feed</option>
             {userGroups.map(group => (
@@ -314,16 +308,12 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
   };
 
   const handleLike = async () => {
-    // Optimistically update UI
     setIsLiked(prev => !prev);
     setLikeCount(prev => prev + (isLiked ? -1 : 1));
 
     try {
       await axios.post(`/api/posts/${post._id}/like`);
-      console.log("blablabla")
-      // Optionally, you can update state again if server returns new values
     } catch (error) {
-      // If error, revert UI
       setIsLiked(prev => !prev);
       setLikeCount(prev => prev + (isLiked ? 1 : -1));
       alert('Failed to like post');
@@ -333,43 +323,33 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
   const handleComment = async (e) => {
     e.preventDefault();
 
-    // 1. Don't do anything if the input is empty or just spaces
     const trimmedComment = commentText.trim();
     if (!trimmedComment) return;
 
-    // 2. Create a temporary comment object for instant UI feedback
     const tempComment = {
-      _id: `temp-${Date.now()}`, // Unique temporary ID
-      user: user,                // The current user object
-      content: trimmedComment,   // The comment text
-      // Optionally: createdAt: new Date().toISOString()
+      _id: `temp-${Date.now()}`,
+      user: user,
+      content: trimmedComment,
     };
 
-    // 3. Add the temporary comment to the comments list immediately
     setComments(prevComments => [...prevComments, tempComment]);
 
-    // 4. Clear the input field right away so the user can type again
     setCommentText('');
 
     try {
-      // 5. Send the comment to the backend
       const response = await axios.post(`/api/posts/${post._id}/comments`, {
         content: trimmedComment
       });
       
       if (response.data.success) {
-        // 6. Fetch the latest comments from the backend to ensure accuracy
         const updatedPost = await axios.get(`/api/posts/${post._id}`);
+
         setComments(updatedPost.data.post.comments);
-        // (Optional) If you want to update the parent post state, do it here
-        // if (onPostUpdated) onPostUpdated(updatedPost.data.post);
       } else {
-        // 7. If the backend says it failed, remove the temporary comment
         setComments(prevComments => prevComments.filter(c => c._id !== tempComment._id));
         alert('Failed to add comment.');
       }
     } catch (error) {
-      // 8. If there was a network or server error, remove the temporary comment and show an error
       setComments(prevComments => prevComments.filter(c => c._id !== tempComment._id));
       console.error('Error adding comment:', error);
       alert('Error adding comment');
@@ -393,7 +373,6 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
   };
 
   const canDeleteComment = (comment) => {
-    // User can delete their own comment or if they're the post author
     return comment.user._id === user?.id || comment.user._id === user?._id ||
            post.author._id === user?.id || post.author._id === user?._id;
   };
@@ -426,7 +405,6 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
                 alt="Profile" 
                 className="avatar-image"
                 onError={(e) => {
-                  // If image fails to load, hide it and show initials
                   e.target.style.display = 'none';
                   e.target.nextElementSibling.style.display = 'flex';
                 }}
@@ -450,7 +428,7 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
             <div className="post-time">
               {new Date(post.createdAt).toLocaleDateString()}
             </div>
-            {/* Add group information display */}
+            {}
             {post.group && post.group.name && (
               <div className="post-group">
                 Posted in <span className="group-name">{post.group.name}</span>
@@ -458,7 +436,7 @@ const PostCard = ({ post, onPostUpdated, onPostDeleted, onEditPost }) => {
             )}
           </div>
           
-          {/* Show options menu for post owner */}
+          {}
           {isOwner && (
             <div className="post-options">
               <button 
@@ -581,7 +559,7 @@ const EditPostModal = ({ post, onClose, onPostUpdated }) => {
             maxLength="2000"
           />
           
-          {/* Show current media if exists */}
+          { }
           {post.media && post.media.type !== 'none' && (
             <div className="current-media">
               <p>Current media (cannot be changed):</p>

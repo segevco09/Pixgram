@@ -1,8 +1,4 @@
-/* 
-CSS3 ONLY - Authentication Component Styling
-Features: border-radius, transition, text-shadow, linear-gradient, 
-transform, box-shadow, grid, flexbox, media queries
-*/
+
 
 .auth-container {
   min-height: 100vh;
@@ -15,12 +11,12 @@ transform, box-shadow, grid, flexbox, media queries
 
 .auth-card {
   background: white;
-  border-radius: 12px; /* CSS3 border-radius */
+  border-radius: 12px;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
   padding: 40px;
   width: 100%;
-  max-width: 500px; /* Increased width to accommodate two-column layout better */
-  transition: transform 0.3s ease; /* CSS3 transition */
+  max-width: 500px;
+  transition: transform 0.3s ease;
 }
 
 .auth-card:hover {
@@ -36,7 +32,7 @@ transform, box-shadow, grid, flexbox, media queries
   color: #333;
   font-size: 2.5rem;
   margin-bottom: 10px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1); /* CSS3 text-shadow */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
   font-weight: 700;
 }
 
@@ -62,7 +58,7 @@ transform, box-shadow, grid, flexbox, media queries
 .form-group {
   display: flex;
   flex-direction: column;
-  min-width: 0; /* Prevents flex items from overflowing */
+  min-width: 0; 
 }
 
 .form-group label {
@@ -75,12 +71,12 @@ transform, box-shadow, grid, flexbox, media queries
 .form-group input {
   padding: 12px 15px;
   border: 2px solid #e1e5e9;
-  border-radius: 8px; /* CSS3 border-radius */
+  border-radius: 8px;
   font-size: 1rem;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* CSS3 transition */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease; 
   outline: none;
   width: 100%;
-  box-sizing: border-box; /* Ensures padding is included in width calculation */
+  box-sizing: border-box;
   background: white !important;
   color: #333 !important;
 }
@@ -99,11 +95,11 @@ transform, box-shadow, grid, flexbox, media queries
   color: white;
   border: none;
   padding: 15px;
-  border-radius: 8px; /* CSS3 border-radius */
+  border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease; /* CSS3 transition */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   margin-top: 10px;
 }
 
@@ -121,7 +117,7 @@ transform, box-shadow, grid, flexbox, media queries
   background: #fee;
   color: #c33;
   padding: 12px;
-  border-radius: 6px; /* CSS3 border-radius */
+  border-radius: 6px;
   border: 1px solid #fcc;
   font-size: 0.9rem;
   line-height: 1.4;
@@ -143,7 +139,7 @@ transform, box-shadow, grid, flexbox, media queries
   color: #667eea;
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.3s ease; /* CSS3 transition */
+  transition: color 0.3s ease; 
 }
 
 .auth-link:hover {
@@ -151,7 +147,7 @@ transform, box-shadow, grid, flexbox, media queries
   text-decoration: underline;
 }
 
-/* Responsive design */
+
 @media (max-width: 768px) {
   .auth-card {
     padding: 30px 20px;

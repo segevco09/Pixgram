@@ -203,7 +203,7 @@ const UserProfile = () => {
                       <p>{post.caption}</p>
                     </div>
                   )}
-                  {/* Removed likes/comments overlay to prevent covering video controls */}
+                  {}
                   {post.caption && post.media?.url && (
                     <div className="post-caption">
                       <p>{post.caption}</p>

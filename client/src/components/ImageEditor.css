@@ -1,8 +1,3 @@
-/* 
-CSS3 ONLY - Image Editor Styling
-Features: flexbox, grid, border-radius, transition, box-shadow,
-transform, backdrop-filter (where supported)
-*/
 
 .image-editor {
   position: fixed;
@@ -265,7 +260,6 @@ transform, backdrop-filter (where supported)
   transform: scale(1.1);
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .editor-content {
     flex-direction: column;

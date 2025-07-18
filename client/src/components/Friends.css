@@ -1,4 +1,4 @@
-/* Friends Container */
+
 .friends-container {
   max-width: 800px;
   margin: 0 auto;
@@ -53,7 +53,6 @@
   50% { transform: scale(1.05); }
 }
 
-/* Tabs */
 .friends-tabs {
   display: flex;
   gap: 5px;
@@ -91,7 +90,6 @@
   box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);
 }
 
-/* Content Area */
 .friends-content {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -100,7 +98,6 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* User Cards */
 .user-card {
   display: flex;
   align-items: center;
@@ -207,7 +204,6 @@
   align-items: center;
 }
 
-/* Buttons */
 .add-friend-btn,
 .accept-btn,
 .reject-btn,
@@ -255,7 +251,6 @@
   gap: 8px;
 }
 
-/* Status Messages */
 .friend-status,
 .request-status {
   color: rgba(255, 255, 255, 0.8);
@@ -275,7 +270,6 @@
   color: #ffa726;
 }
 
-/* Search Section */
 .search-section {
   display: flex;
   flex-direction: column;
@@ -372,7 +366,6 @@
   gap: 15px;
 }
 
-/* Empty States */
 .empty-state {
   text-align: center;
   padding: 40px 20px;
@@ -389,7 +382,6 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* List Containers */
 .friends-list,
 .friend-requests-list {
   display: flex;
@@ -397,7 +389,6 @@
   gap: 15px;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .friends-container {
     padding: 15px;
@@ -462,7 +453,6 @@
   }
 } 
 
-/* User Profile View Styles */
 .user-profile-view {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -743,7 +733,6 @@
   margin: 0;
 }
 
-/* Responsive Design for Profile View */
 @media (max-width: 768px) {
   .user-profile-view .profile-info {
     flex-direction: column;
@@ -800,7 +789,6 @@
   }
 } 
 
-/* Make posts clickable */
 .post-item {
   cursor: pointer !important;
   transition: transform 0.3s ease, box-shadow 0.3s ease !important;
@@ -811,7 +799,6 @@
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Post View Modal Styles */
 .post-modal-overlay {
   position: fixed;
   top: 0;
@@ -1042,7 +1029,7 @@
 .comment {
   display: flex;
   align-items: center;
-  gap: 8px; /* moderate horizontal gap */
+  gap: 8px; 
   margin-bottom: 4px;
   padding: 0;
   border-bottom: 1px solid #f7f7f7;
@@ -1112,7 +1099,6 @@
   transform: scale(1.1);
 }
 
-/* Animation for modal appearance */
 @keyframes modalFadeIn {
   from {
     opacity: 0;
@@ -1124,7 +1110,6 @@
   }
 }
 
-/* Responsive Design for Modal */
 @media (max-width: 768px) {
   .post-modal-overlay {
     padding: 10px;

@@ -26,13 +26,11 @@ const ImageEditor = ({ imageUrl, onSave, onCancel }) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      // Set canvas dimensions
       canvas.width = img.width;
       canvas.height = img.height;
       originalCanvas.width = img.width;
       originalCanvas.height = img.height;
       
-      // Draw original image
       ctx.drawImage(img, 0, 0);
       originalCtx.drawImage(img, 0, 0);
     };
@@ -45,7 +43,6 @@ const ImageEditor = ({ imageUrl, onSave, onCancel }) => {
     const ctx = canvas.getContext('2d');
     const originalCtx = originalCanvas.getContext('2d');
     
-    // Start with original image
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(originalCanvas, 0, 0);
     
@@ -90,14 +87,11 @@ const ImageEditor = ({ imageUrl, onSave, onCancel }) => {
         break;
     }
     
-    // Apply brightness, contrast, saturation
     for (let i = 0; i < data.length; i += 4) {
-      // Brightness
       data[i] = Math.min(255, Math.max(0, data[i] * (brightness / 100)));
       data[i + 1] = Math.min(255, Math.max(0, data[i + 1] * (brightness / 100)));
       data[i + 2] = Math.min(255, Math.max(0, data[i + 2] * (brightness / 100)));
       
-      // Contrast
       const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
       data[i] = Math.min(255, Math.max(0, contrastFactor * (data[i] - 128) + 128));
       data[i + 1] = Math.min(255, Math.max(0, contrastFactor * (data[i + 1] - 128) + 128));

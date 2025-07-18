@@ -17,7 +17,6 @@ const Friends = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // User profile viewing states
   const [viewingUserId, setViewingUserId] = useState(null);
   const [viewingUserProfile, setViewingUserProfile] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
@@ -30,7 +29,6 @@ const Friends = () => {
   useEffect(() => {
     fetchFriends();
     
-    // Check for userId in URL parameters
     const userId = searchParams.get('userId');
     if (userId) {
       handleViewUserProfile(userId);
@@ -59,34 +57,23 @@ const Friends = () => {
       return;
     }
 
-    console.log('Searching for:', searchQuery);
     setLoading(true);
     try {
-      // Try both search endpoints to debug
-      console.log('Trying main search endpoint...');
       const response = await axios.get(`/api/friends/search?q=${encodeURIComponent(searchQuery)}`);
-      console.log('Main search response:', response.data);
       
-      console.log('Trying test search endpoint...');
       const testResponse = await axios.get(`/api/friends/test-search?q=${encodeURIComponent(searchQuery)}`);
-      console.log('Test search response:', testResponse.data);
       
       if (response.data.success) {
         setSearchResults(response.data.users);
-        console.log('Search results:', response.data.users);
       } else if (testResponse.data.success) {
-        console.log('Main search failed but test search worked, using test results');
         setSearchResults(testResponse.data.users);
       }
     } catch (error) {
       console.error('Error searching users:', error);
       console.error('Error details:', error.response?.data);
       
-      // Try test search as fallback
       try {
-        console.log('Main search failed, trying test search...');
         const testResponse = await axios.get(`/api/friends/test-search?q=${encodeURIComponent(searchQuery)}`);
-        console.log('Test search fallback response:', testResponse.data);
         if (testResponse.data.success) {
           setSearchResults(testResponse.data.users);
         }
@@ -236,7 +223,6 @@ const Friends = () => {
 
   const handleStartChat = (userId) => {
     // Navigate to chat tab with the specific user
-    console.log('🚀 Starting chat with user:', userId);
     navigate(`/dashboard?tab=chat&userId=${userId}`);
   };
 
@@ -406,7 +392,6 @@ const Friends = () => {
               <button 
                 className="chat-btn"
                 onClick={() => {
-                  console.log('💬 Message button clicked for user:', viewingUserId);
                   handleStartChat(viewingUserId);
                 }}
               >
@@ -421,7 +406,6 @@ const Friends = () => {
               <button 
                 className="chat-btn"
                 onClick={() => {
-                  console.log('💬 Message button clicked for user:', viewingUserId);
                   handleStartChat(viewingUserId);
                 }}
               >
@@ -441,7 +425,6 @@ const Friends = () => {
               <button 
                 className="chat-btn"
                 onClick={() => {
-                  console.log('💬 Message button clicked for user:', viewingUserId);
                   handleStartChat(viewingUserId);
                 }}
               >
@@ -589,7 +572,7 @@ const Friends = () => {
         {renderTabContent()}
       </div>
 
-      {/* Post View Modal */}
+      {}
       {showPostModal && selectedPost && (
         <PostViewModal 
           post={selectedPost} 
@@ -600,7 +583,6 @@ const Friends = () => {
   );
 };
 
-// Post View Modal Component (same as in Profile.js)
 const PostViewModal = ({ post, onClose }) => {
   const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
@@ -609,12 +591,10 @@ const PostViewModal = ({ post, onClose }) => {
   const [commentText, setCommentText] = useState('');
   const [showComments, setShowComments] = useState(false);
 
-  // Check if current user has liked this post
   useEffect(() => {
     if (post.likes && user) {
       const currentUserId = (user.id || user._id).toString();
       const userLiked = post.likes.some(likeId => {
-        // Convert ObjectId to string for comparison
         return likeId.toString() === currentUserId;
       });
       setIsLiked(userLiked);
@@ -684,7 +664,6 @@ const PostViewModal = ({ post, onClose }) => {
   };
 
   const canDeleteComment = (comment) => {
-    // User can delete their own comment or if they're the post author
     return comment.user._id === user?.id || comment.user._id === user?._id ||
 
            post.author._id === user?.id || post.author._id === user?._id;

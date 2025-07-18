@@ -10,7 +10,7 @@ import './Dashboard.css';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('feed');
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-/* Chat Container */
+
 .chat-container {
   display: flex;
   height: 600px;
@@ -9,7 +9,6 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* Sidebar */
 .chat-sidebar {
   width: 300px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -35,7 +34,6 @@
   font-size: 0.85em;
 }
 
-/* Friends List */
 .friends-list {
   flex: 1;
   overflow-y: auto;
@@ -135,7 +133,6 @@
   opacity: 0.8;
 }
 
-/* Main Chat Area */
 .chat-main {
   flex: 1;
   display: flex;
@@ -163,7 +160,6 @@
   font-size: 0.85em;
 }
 
-/* Messages Container */
 .messages-container {
   flex: 1;
   overflow-y: auto;
@@ -180,7 +176,6 @@
   font-style: italic;
 }
 
-/* Message Bubbles */
 .message {
   display: flex;
   margin-bottom: 15px;
@@ -229,7 +224,6 @@
 
 
 
-/* Optimistic message styling */
 .message.optimistic {
   opacity: 0.7;
 }
@@ -250,7 +244,6 @@
   pointer-events: none;
 }
 
-/* Context Menu */
 .message-context-menu {
   background: white;
   border-radius: 8px;
@@ -286,7 +279,6 @@
   text-align: center;
 }
 
-/* Message Edit Styling */
 .message-edit-container {
   width: 100%;
 }
@@ -348,12 +340,10 @@
   color: rgba(0, 0, 0, 0.5);
 }
 
-/* Make messages clickable */
 .message.sent {
   cursor: context-menu;
 }
 
-/* Message Input */
 .message-input-container {
   padding: 20px;
   background: white;
@@ -404,7 +394,6 @@
   transform: none;
 }
 
-/* No Chat Selected */
 .no-chat-selected {
   flex: 1;
   display: flex;
@@ -460,7 +449,6 @@
   font-size: 0.9em;
 }
 
-/* Scrollbar Styling */
 .friends-list::-webkit-scrollbar,
 .messages-container::-webkit-scrollbar {
   width: 6px;
@@ -486,7 +474,6 @@
   background: rgba(0, 0, 0, 0.4);
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .chat-container {
     height: 500px;

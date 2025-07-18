@@ -1,4 +1,4 @@
-/* User Profile Page Styles */
+
 .user-profile-page {
   min-height: 100vh;
   background: #f8f9fa;
@@ -261,7 +261,6 @@
   font-size: 16px;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .user-profile-page {
     padding: 15px;

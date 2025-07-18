@@ -16,7 +16,6 @@ const Profile = () => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [showPostModal, setShowPostModal] = useState(false);
 
-  // Add edit post states
   const [editingPost, setEditingPost] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -73,13 +72,10 @@ const Profile = () => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
     }
-
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('File size must be less than 5MB');
       return;
@@ -128,7 +124,6 @@ const Profile = () => {
         const data = await response.json();
         updateUser(data.user);
         setIsEditingBio(false);
-        console.log('Bio updated successfully');
       } else {
         const errorData = await response.json();
         alert(`Failed to update bio: ${errorData.message}`);
@@ -167,14 +162,12 @@ const Profile = () => {
     setSelectedPost(null);
   };
 
-  // Add edit post handler
   const handleEditPost = (post) => {
     setEditingPost(post);
     setShowEditModal(true);
-    setSelectedPost(null); // Close the view modal
+    setSelectedPost(null);
   };
 
-  // Add delete post handler
   const handleDeletePost = async (postId) => {
     const confirmDelete = window.confirm('Are you sure you want to delete this post? This action cannot be undone.');
     
@@ -182,9 +175,8 @@ const Profile = () => {
       try {
         const response = await axios.delete(`/api/posts/${postId}`);
         if (response.data.success) {
-          // Remove the deleted post from state
           setUserPosts(userPosts.filter(post => post._id !== postId));
-          setSelectedPost(null); // Close the modal
+          setSelectedPost(null); 
         }
       } catch (error) {
         console.error('Error deleting post:', error);
@@ -193,7 +185,6 @@ const Profile = () => {
     }
   };
 
-  // Add post update handler
   const handlePostUpdated = (updatedPost) => {
     setUserPosts(userPosts.map(post => 
       post._id === updatedPost._id ? { ...post, ...updatedPost } : post
@@ -221,7 +212,6 @@ const Profile = () => {
                 alt="Profile" 
                 className="profile-picture"
                 onError={(e) => {
-                  // If image fails to load, hide it and show initials
                   e.target.style.display = 'none';
                   e.target.nextElementSibling.style.display = 'flex';
                 }}
@@ -248,7 +238,7 @@ const Profile = () => {
               </label>
             </div>
             
-            {/* Always visible edit button for better UX */}
+            {}
             <div className="profile-picture-edit-btn">
               <input
                 type="file"
@@ -399,7 +389,7 @@ const Profile = () => {
         )}
       </div>
 
-      {/* Post View Modal */}
+      {}
       {showPostModal && selectedPost && (
         <PostViewModal 
           post={selectedPost} 
@@ -409,7 +399,7 @@ const Profile = () => {
         />
       )}
 
-      {/* Edit Post Modal */}
+      {}
       {showEditModal && editingPost && (
         <EditPostModal 
           post={editingPost} 
@@ -424,7 +414,6 @@ const Profile = () => {
   );
 };
 
-// Post View Modal Component
 const PostViewModal = ({ post, onClose, onEditPost, onDeletePost }) => {
   const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
@@ -434,15 +423,12 @@ const PostViewModal = ({ post, onClose, onEditPost, onDeletePost }) => {
   const [showComments, setShowComments] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
 
-  // Check if current user owns this post
   const isOwner = post.author._id === user?.id || post.author._id === user?._id;
 
-  // Check if current user has liked this post
   useEffect(() => {
     if (post.likes && user) {
       const currentUserId = (user.id || user._id).toString();
       const userLiked = post.likes.some(likeId => {
-        // Convert ObjectId to string for comparison
         return likeId.toString() === currentUserId;
       });
       setIsLiked(userLiked);
@@ -512,7 +498,6 @@ const PostViewModal = ({ post, onClose, onEditPost, onDeletePost }) => {
   };
 
   const canDeleteComment = (comment) => {
-    // User can delete their own comment or if they're the post author
     return comment.user._id === user?.id || comment.user._id === user?._id ||
            post.author._id === user?.id || post.author._id === user?._id;
   };
@@ -542,7 +527,7 @@ const PostViewModal = ({ post, onClose, onEditPost, onDeletePost }) => {
           </div>
           
           <div className="modal-header-actions">
-            {/* Show options menu for post owner */}
+            {}
             {isOwner && (
               <div className="post-options">
                 <button 
@@ -644,7 +629,6 @@ const PostViewModal = ({ post, onClose, onEditPost, onDeletePost }) => {
   );
 };
 
-// Edit Post Modal Component
 const EditPostModal = ({ post, onClose, onPostUpdated }) => {
   const [caption, setCaption] = useState(post.caption || '');
   const [loading, setLoading] = useState(false);
@@ -688,7 +672,7 @@ const EditPostModal = ({ post, onClose, onPostUpdated }) => {
             maxLength="2000"
           />
           
-          {/* Show current media if exists */}
+          {}
           {post.media && post.media.type !== 'none' && (
             <div className="current-media">
               <p>Current media (cannot be changed):</p>

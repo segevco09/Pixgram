@@ -1,8 +1,4 @@
-/* 
-CSS3 ONLY - Dashboard Component Styling
-Features: border-radius, transition, text-shadow, linear-gradient,
-transform, box-shadow, grid, flexbox, media queries
-*/
+
 
 .dashboard-container {
   min-height: 100vh;
@@ -29,10 +25,9 @@ transform, box-shadow, grid, flexbox, media queries
 .header-content h1 {
   margin: 0;
   font-size: 2rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); /* CSS3 text-shadow */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Dashboard Navigation */
 .dashboard-nav {
   display: flex;
   gap: 15px;
@@ -43,10 +38,10 @@ transform, box-shadow, grid, flexbox, media queries
   color: white;
   border: 2px solid rgba(255, 255, 255, 0.2);
   padding: 10px 20px;
-  border-radius: 25px; /* CSS3 border-radius */
+  border-radius: 25px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s ease; /* CSS3 transition */
+  transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -54,19 +49,19 @@ transform, box-shadow, grid, flexbox, media queries
 .nav-button:hover {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-2px); /* CSS3 transform */
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* CSS3 box-shadow */
+  transform: translateY(-2px); 
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .nav-button.active {
-  background: linear-gradient(45deg, #ff6b6b, #ee5a24); /* CSS3 linear-gradient */
+  background: linear-gradient(45deg, #ff6b6b, #ee5a24);
   border-color: #ff6b6b;
-  box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3); /* CSS3 box-shadow */
+  box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);
 }
 
 .nav-button.active:hover {
-  transform: translateY(-2px) scale(1.05); /* CSS3 transform */
-  box-shadow: 0 6px 20px rgba(238, 90, 36, 0.4); /* CSS3 box-shadow */
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(238, 90, 36, 0.4);
 }
 
 .user-info {
@@ -85,10 +80,10 @@ transform, box-shadow, grid, flexbox, media queries
   color: white;
   border: 2px solid rgba(255, 255, 255, 0.3);
   padding: 8px 16px;
-  border-radius: 25px; /* CSS3 border-radius */
+  border-radius: 25px;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.3s ease; /* CSS3 transition */
+  transition: all 0.3s ease;
 }
 
 .logout-button:hover {
@@ -106,9 +101,9 @@ transform, box-shadow, grid, flexbox, media queries
 .welcome-section {
   background: white;
   padding: 40px;
-  border-radius: 12px; /* CSS3 border-radius */
+  border-radius: 12px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-  transition: transform 0.3s ease; /* CSS3 transition */
+  transition: transform 0.3s ease;
 }
 
 .welcome-section:hover {
@@ -118,7 +113,7 @@ transform, box-shadow, grid, flexbox, media queries
 .welcome-section h2 {
   color: #333;
   margin-bottom: 15px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05); /* CSS3 text-shadow */
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .welcome-section p {
@@ -131,14 +126,14 @@ transform, box-shadow, grid, flexbox, media queries
 .user-details {
   background: #f8f9fa;
   padding: 30px;
-  border-radius: 8px; /* CSS3 border-radius */
+  border-radius: 8px;
   border-left: 4px solid #667eea;
 }
 
 .user-details h3 {
   color: #333;
   margin-bottom: 20px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05); /* CSS3 text-shadow */
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .profile-info {
@@ -156,7 +151,6 @@ transform, box-shadow, grid, flexbox, media queries
   color: #333;
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
   .header-content {
     flex-direction: column;

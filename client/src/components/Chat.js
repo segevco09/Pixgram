@@ -25,7 +25,6 @@ function Chat() {
   // Initialize socket connection
   useEffect(() => {
     if (user) {
-      console.log('🔌 Initializing socket connection for user:', user.id);
       const newSocket = io('http://localhost:5000', {
         autoConnect: true,
         reconnection: true,
@@ -36,42 +35,27 @@ function Chat() {
       });
       
       newSocket.on('connect', () => {
-        console.log('✅ Socket connected successfully:', newSocket.id);
         const userId = user._id || user.id;
-        console.log('🏠 Joining user room:', `user-${userId}`);
         newSocket.emit('join-user-room', userId);
       });
 
       newSocket.on('disconnect', (reason) => {
-        console.log('❌ Socket disconnected:', reason);
       });
 
       newSocket.on('connect_error', (error) => {
-        console.error('❌ Socket connection error:', error);
       });
 
       newSocket.on('reconnect', (attemptNumber) => {
-        console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
       });
 
       newSocket.on('reconnect_error', (error) => {
-        console.error('❌ Socket reconnection error:', error);
       });
 
-      // Listen for room joining confirmation
       newSocket.on('room-joined', (data) => {
-        console.log('🏠✅ Successfully joined room:', data);
       });
 
-      // Listen for new messages from Chats database
       newSocket.on('new-message', (messageData) => {
-        console.log('📨 Received new message via socket:', messageData);
-        console.log('📨 Current user ID:', user._id || user.id);
-        console.log('📨 Selected friend ID:', selectedFriendRef.current?.id);
-        console.log('📨 Message senderId:', messageData.senderId);
-        console.log('📨 Message receiverId:', messageData.receiverId);
         
-        // Add message to current conversation if it's related to the current user
         const currentUserId = (user._id || user.id).toString();
         const messageSenderId = messageData.senderId.toString();
         const messageReceiverId = messageData.receiverId.toString();
@@ -79,9 +63,7 @@ function Chat() {
         const isForCurrentUser = messageReceiverId === currentUserId || messageSenderId === currentUserId;
         
         if (isForCurrentUser) {
-          console.log('📨 Message is for current user, processing...');
           
-          // Check if this message belongs to the currently active conversation
           const currentSelectedFriend = selectedFriendRef.current;
           const selectedFriendId = currentSelectedFriend?.id?.toString();
           const isForActiveConversation = selectedFriendId && (
@@ -89,28 +71,16 @@ function Chat() {
             (messageSenderId === selectedFriendId && messageReceiverId === currentUserId)
           );
           
-          console.log('📨 Is for active conversation?', isForActiveConversation, {
-            selectedFriendId,
-            messageSenderId,
-            messageReceiverId,
-            currentUserId,
-            hasSelectedFriend: !!currentSelectedFriend
-          });
-          
-          // Always update messages state, but only if it's for the active conversation OR no conversation is selected
           if (isForActiveConversation || !currentSelectedFriend) {
           setMessages(prev => {
-            // Check if message already exists (to prevent duplicates)
               const messageExists = prev.some(msg => 
                 msg._id && messageData._id && msg._id.toString() === messageData._id.toString()
               );
               
             if (messageExists) {
-                console.log('📨 Message already exists, skipping duplicate');
               return prev;
             }
             
-              console.log('📨 Adding new message to active conversation');
               const newMessage = {
               _id: messageData._id,
               senderId: messageData.senderId,
@@ -122,7 +92,6 @@ function Chat() {
               isRead: messageData.isRead
               };
               
-              // Check if this is replacing an optimistic message (same content, same sender)
               const optimisticIndex = prev.findIndex(msg => 
                 msg.isOptimistic && 
                 msg.senderId === newMessage.senderId && 
@@ -130,40 +99,32 @@ function Chat() {
               );
               
               if (optimisticIndex !== -1) {
-                console.log('📨 Replacing optimistic message with real message');
                 const updatedMessages = [...prev];
-                updatedMessages[optimisticIndex] = newMessage; // Replace optimistic with real
+                updatedMessages[optimisticIndex] = newMessage;
                 return updatedMessages;
               } else {
-                console.log('📨 Adding new message (no optimistic to replace)');
                 return [...prev, newMessage];
               }
             });
           } else {
-            console.log('📨 Message not for active conversation, only updating conversations list');
         }
 
-          // Always update conversations list to reflect new message
           setTimeout(() => {
             loadConversations();
           }, 100);
         } else {
-          console.log('📨 Message not for current user, ignoring');
         }
       });
 
       newSocket.on('message-confirmed', (data) => {
-        console.log('✅ Message confirmed:', data);
       });
 
       newSocket.on('message-error', (error) => {
-        console.error('❌ Socket message error:', error);
         alert('Failed to send message: ' + error.error);
       });
 
       // Listen for message edits
       newSocket.on('message-edited', (data) => {
-        console.log('✏️ Received message edit:', data);
         const { messageId, newContent, editedAt } = data;
         
         setMessages(prev => prev.map(msg => 
@@ -175,7 +136,6 @@ function Chat() {
 
       // Listen for message deletions
       newSocket.on('message-deleted', (data) => {
-        console.log('🗑️ Received message deletion:', data);
         const { messageId } = data;
         
         setMessages(prev => prev.filter(msg => msg._id !== messageId));
@@ -186,49 +146,37 @@ function Chat() {
       setSocket(newSocket);
 
       return () => {
-        console.log('🔌 Cleaning up socket connection');
         newSocket.disconnect();
       };
     }
   }, [user]);
 
-    // Handle URL parameters for auto-selecting a chat
   useEffect(() => {
     const userId = searchParams.get('userId');
-    console.log('🔍 Chat component checking URL userId:', userId);
-    console.log('🔍 Available friends:', friends);
     
     if (userId && friends.length > 0) {
-      // Find the friend in the friends list
       const friendToSelect = friends.find(friend => friend.id === userId);
-      console.log('🔍 Found friend to select:', friendToSelect);
       
       if (friendToSelect && (!selectedFriend || selectedFriend.id !== userId)) {
-        console.log('🎯 Auto-selecting friend from URL:', friendToSelect);
         selectFriend(friendToSelect);
-        // Clear the URL parameter after selecting
         setSearchParams({});
       }
     }
    }, [searchParams, friends, selectedFriend]);
 
-  // 1. Load friends first
   useEffect(() => {
     if (user) {
       loadFriends();
     }
   }, [user]);
 
-  // 2. Load conversations after friends
   useEffect(() => {
     if (user && friends.length > 0) {
       loadConversations();
     }
   }, [user, friends]);
 
-  // 3. Merge for display
   const getDisplayList = () => {
-    // Map friends to display items
     return friends.map(friend => {
       const conv = conversations.find(c => c.otherUserId === friend.id);
       return {
@@ -242,17 +190,14 @@ function Chat() {
     });
   };
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Keep selectedFriendRef in sync with selectedFriend state
   useEffect(() => {
     selectedFriendRef.current = selectedFriend;
   }, [selectedFriend]);
 
-  // Close context menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setContextMenu(null);
@@ -311,7 +256,6 @@ function Chat() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      console.log(`📖 Loading conversation with user ${friendId} from Chats DB`);
       
       const response = await axios.get(`/api/messages/conversation/${friendId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -319,7 +263,6 @@ function Chat() {
       
       if (response.data.success) {
         const data = response.data;
-        console.log(`📖 Loaded ${data.messages.length} messages from Chats DB:`, data.messages);
         
         // Convert messages to expected format
         const formattedMessages = data.messages.map(msg => ({
@@ -347,7 +290,6 @@ function Chat() {
   };
 
   const selectFriend = (friend) => {
-    console.log('👤 Selected friend:', friend);
     setSelectedFriend(friend);
     selectedFriendRef.current = friend; // Update ref as well
     loadConversation(friend.id);
@@ -366,24 +308,16 @@ function Chat() {
     }
     
     if (!socket) {
-      console.error('❌ Socket not connected, cannot send message');
+      console.error('Socket not connected, cannot send message');
       alert('Not connected to chat server. Please refresh the page.');
       return;
     }
 
     if (!socket.connected) {
-      console.error('❌ Socket disconnected, cannot send message');
+      console.error('Socket disconnected, cannot send message');
       alert('Disconnected from chat server. Please refresh the page.');
       return;
     }
-
-    console.log('🔍 DEBUG - User object:', user);
-    console.log('🔍 DEBUG - User ID:', user.id);
-    console.log('🔍 DEBUG - User _ID:', user._id);
-    console.log('🔍 DEBUG - Selected friend:', selectedFriend);
-    console.log('🔍 DEBUG - Selected friend ID:', selectedFriend.id);
-    console.log('🔍 DEBUG - Socket connected:', socket.connected);
-    console.log('🔍 DEBUG - Socket ID:', socket.id);
 
     // Construct full name from firstName and lastName
     const senderName = user.firstName && user.lastName 
@@ -398,19 +332,9 @@ function Chat() {
       receiverName: selectedFriend.name
     };
 
-    console.log('📤 Sending message via socket to Chats DB:', messageData);
-    console.log('🔍 DEBUG - Message data types:', {
-      senderIdType: typeof messageData.senderId,
-      receiverIdType: typeof messageData.receiverId,
-      senderId: messageData.senderId,
-      receiverId: messageData.receiverId,
-      socketConnected: socket.connected
-    });
-
     try {
-      // Add optimistic update - show message immediately
       const optimisticMessage = {
-        _id: `temp_${Date.now()}`, // Temporary ID
+        _id: `temp_${Date.now()}`,
         senderId: messageData.senderId,
         senderName: messageData.senderName,
         receiverId: messageData.receiverId,
@@ -418,26 +342,20 @@ function Chat() {
         content: messageData.message,
         createdAt: new Date(),
         isRead: false,
-        isOptimistic: true // Mark as optimistic update
+        isOptimistic: true
       };
 
-      console.log('📤 Adding optimistic message for immediate feedback');
       setMessages(prev => [...prev, optimisticMessage]);
 
-      // Send via socket (will save to Chats database)
-      console.log('📡 Emitting send-message event...');
       socket.emit('send-message', messageData);
 
-      // Clear the input immediately
       setNewMessage('');
       
-      console.log('📤 Message sent successfully, waiting for real-time confirmation...');
       
     } catch (error) {
-      console.error('❌ Error sending message:', error);
+      console.error('Error sending message:', error);
       alert(`Failed to send message: ${error.message}`);
       
-      // Remove optimistic message on error
       setMessages(prev => prev.filter(msg => !msg.isOptimistic || msg.content !== messageData.message));
     }
   };
@@ -449,12 +367,10 @@ function Chat() {
     }
   };
 
-  // Handle long press / right click on messages
   const handleMessageLongPress = (message, event) => {
     event.preventDefault();
     event.stopPropagation();
     
-    // Only show context menu for messages sent by current user
     const currentUserId = (user._id || user.id).toString();
     if (message.senderId.toString() !== currentUserId) {
       return;
@@ -463,26 +379,22 @@ function Chat() {
     const rect = event.currentTarget.getBoundingClientRect();
     const clickX = event.clientX || rect.right;
     const clickY = event.clientY || rect.top;
-    
-    // Check viewport dimensions to prevent menu from going off-screen
-    const menuWidth = 200; // Approximate menu width
-    const menuHeight = 120; // Approximate menu height
+
+    const menuWidth = 200; 
+    const menuHeight = 120; 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
-    // Adjust X position if menu would go off right edge
     let adjustedX = clickX;
     if (clickX + menuWidth > viewportWidth) {
-      adjustedX = clickX - menuWidth; // Position to the left of cursor
+      adjustedX = clickX - menuWidth;
     }
     
-    // Adjust Y position if menu would go off bottom edge
     let adjustedY = clickY;
     if (clickY + menuHeight > viewportHeight) {
-      adjustedY = clickY - menuHeight; // Position above cursor
+      adjustedY = clickY - menuHeight;
     }
     
-    // Ensure menu doesn't go off left or top edges
     adjustedX = Math.max(10, adjustedX);
     adjustedY = Math.max(10, adjustedY);
 
@@ -493,14 +405,12 @@ function Chat() {
     });
   };
 
-  // Handle edit message
   const handleEditMessage = (message) => {
     setEditingMessage(message._id);
     setEditText(message.content);
     setContextMenu(null);
   };
 
-  // Save edited message
   const saveEditedMessage = async (messageId) => {
     if (!editText.trim()) return;
 
@@ -511,26 +421,18 @@ function Chat() {
         otherUserId: selectedFriend.id
       };
       
-      console.log('🔍 EDIT REQUEST DATA:', {
-        messageId,
-        requestData,
-        url: `http://localhost:5000/api/messages/edit/${messageId}`,
-        hasToken: !!token
-      });
       
       const response = await axios.put(`/api/messages/edit/${messageId}`, requestData, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.data.success) {
-        // Update local messages
         setMessages(prev => prev.map(msg => 
           msg._id === messageId 
             ? { ...msg, content: editText.trim(), editedAt: new Date() }
             : msg
         ));
         
-        // Emit socket event for real-time update
         if (socket) {
           socket.emit('message-edited', {
             messageId,
@@ -541,14 +443,13 @@ function Chat() {
           });
         }
         
-        console.log('✅ Message edited successfully');
       } else {
         const errorData = response.data;
-        console.error('❌ Failed to edit message:', response.status, errorData);
+        console.error('Failed to edit message:', response.status, errorData);
         alert(`Failed to edit message: ${response.status} ${errorData.message}`);
       }
     } catch (error) {
-      console.error('❌ Error editing message:', error);
+      console.error('Error editing message:', error);
       alert('Error editing message');
     }
 
@@ -556,13 +457,11 @@ function Chat() {
     setEditText('');
   };
 
-  // Cancel editing
   const cancelEditing = () => {
     setEditingMessage(null);
     setEditText('');
   };
 
-  // Handle delete message
   const handleDeleteMessage = async (message) => {
     if (!window.confirm('Are you sure you want to delete this message?')) {
       return;
@@ -578,10 +477,8 @@ function Chat() {
       });
 
       if (response.data.success) {
-        // Remove message from local state
         setMessages(prev => prev.filter(msg => msg._id !== message._id));
         
-        // Emit socket event for real-time update
         if (socket) {
           socket.emit('message-deleted', {
             messageId: message._id,
@@ -590,13 +487,12 @@ function Chat() {
           });
         }
         
-        console.log('✅ Message deleted successfully');
       } else {
-        console.error('❌ Failed to delete message');
+        console.error('Failed to delete message');
         alert('Failed to delete message');
       }
     } catch (error) {
-      console.error('❌ Error deleting message:', error);
+      console.error('Error deleting message:', error);
       alert('Error deleting message');
     }
 
@@ -686,7 +582,6 @@ function Chat() {
                       className={`message ${message.senderId === (user._id || user.id) ? 'sent' : 'received'} ${message.isOptimistic ? 'optimistic' : ''}`}
                       onContextMenu={(e) => handleMessageLongPress(message, e)}
                       onTouchStart={(e) => {
-                        // Handle mobile long press
                         const touch = e.touches[0];
                         const longPressTimer = setTimeout(() => {
                           handleMessageLongPress(message, {
@@ -751,7 +646,7 @@ function Chat() {
               )}
             </div>
 
-            {/* Context Menu */}
+            {}
             {contextMenu && (
               <div 
                 className="message-context-menu"

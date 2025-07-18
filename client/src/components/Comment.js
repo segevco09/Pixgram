@@ -2,7 +2,6 @@ import React from 'react';
 import './Comment.css';
 
 const Comment = ({ comment, user, canDelete, handleDelete }) => {
-  // Helper to get initials if no profile picture
   const getInitials = (firstName, lastName) => {
     const first = firstName?.charAt(0)?.toUpperCase() || '';
     const last = lastName?.charAt(0)?.toUpperCase() || '';

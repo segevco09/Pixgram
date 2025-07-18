@@ -13,10 +13,8 @@ const Groups = () => {
     category: 'all',
     privacy: 'all'
   });
-  const [commentText, setCommentText] = useState('');
-  const [activeTab, setActiveTab] = useState('groups'); // 'groups', 'requests', 'search'
+  const [activeTab, setActiveTab] = useState('groups');
 
-  // Best practice: useCallback for fetchGroups
   const fetchGroups = useCallback(async () => {
     try {
       const params = new URLSearchParams();
@@ -86,7 +84,7 @@ const Groups = () => {
 
       {activeTab === 'groups' && (
         <div>
-          {/* Advanced Search */}
+          {}
           <div className="search-section">
             <div className="search-filters">
               <input
@@ -125,14 +123,14 @@ const Groups = () => {
             </div>
           </div>
 
-          {/* Groups Grid */}
+          {}
           <div className="groups-grid">
             {groups.map(group => (
                 <GroupCard 
                   key={group._id} 
                   group={group} 
                   currentUser={user}
-                isMember={group.isMember} // pass as prop
+                isMember={group.isMember}
                   onGroupUpdate={fetchGroups}
                 onViewGroup={() => handleGroupClick(group._id, group.isMember)}
                 />
@@ -149,7 +147,7 @@ const Groups = () => {
 
       {activeTab === 'requests' && (
         <div>
-          {/* Render join requests for groups the user created */}
+          {}
           {groups
             .filter(group => String(group.creator._id) === String(user._id || user.id))
             .map(group => (
@@ -187,7 +185,7 @@ const Groups = () => {
         </div>
       )}
 
-      {/* Create Group Modal */}
+      {}
       {showCreateModal && (
         <CreateGroupModal 
           onClose={() => setShowCreateModal(false)}
@@ -195,12 +193,12 @@ const Groups = () => {
         />
       )}
 
-      {/* Group Detail Modal */}
+      {}
       {selectedGroup && (
         <GroupDetailModal 
           group={selectedGroup}
           currentUser={user}
-          isMember={selectedGroup.isMember} // Use selectedGroup.isMember
+          isMember={selectedGroup.isMember}
           onClose={() => setSelectedGroup(null)}
           onGroupUpdate={fetchGroups}
         />
@@ -211,7 +209,6 @@ const Groups = () => {
 
 const GroupCard = ({ group, currentUser, isMember, onGroupUpdate, onViewGroup }) => {
   const [isLoading, setIsLoading] = useState(false);
-  // Use isMember from parent, do not redeclare
   const isAdmin = group.admins?.includes(currentUser._id) || 
                   group.creator._id === currentUser._id;
 

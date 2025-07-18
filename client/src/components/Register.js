@@ -67,7 +67,6 @@ const Register = () => {
     if (result.success) {
       navigate('/dashboard');
     } else {
-      console.log('Registration error:', result);
       setErrors(result.errors || [result.message]);
     }
     
