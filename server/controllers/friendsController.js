@@ -1,6 +1,5 @@
 const User = require('../models/User');
 
-// Get user's friends and friend requests
 exports.getFriends = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
@@ -17,7 +16,6 @@ exports.getFriends = async (req, res) => {
   }
 };
 
-// Send friend request
 exports.sendRequest = async (req, res) => {
   try {
     const targetUserId = req.params.userId;
@@ -66,7 +64,6 @@ exports.sendRequest = async (req, res) => {
   }
 };
 
-// Accept friend request
 exports.acceptRequest = async (req, res) => {
   try {
     const requesterId = req.params.userId;
@@ -103,7 +100,6 @@ exports.acceptRequest = async (req, res) => {
   }
 };
 
-// Reject friend request
 exports.rejectRequest = async (req, res) => {
   try {
     const requesterId = req.params.userId;
@@ -128,7 +124,6 @@ exports.rejectRequest = async (req, res) => {
   }
 };
 
-// Remove friend
 exports.removeFriend = async (req, res) => {
   try {
     const friendId = req.params.userId;
@@ -165,7 +160,6 @@ exports.removeFriend = async (req, res) => {
   }
 };
 
-// Search for users to add as friends
 exports.searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
@@ -204,7 +198,7 @@ exports.searchUsers = async (req, res) => {
     const usersWithStatus = users.map(user => ({
       ...user.toObject(),
       isFriend: currentUser.isFriend(user._id),
-      hasRequestPending: false, // Will be updated below
+      hasRequestPending: false,
       hasRequestFromThem: currentUser.hasFriendRequest(user._id)
     }));
 
@@ -230,7 +224,6 @@ exports.searchUsers = async (req, res) => {
   }
 };
 
-// Get follower/following stats for a specific user
 exports.getStatsById = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -254,7 +247,6 @@ exports.getStatsById = async (req, res) => {
   }
 };
 
-// Get follower/following stats for current user
 exports.getStats = async (req, res) => {
   try {
     const currentUserId = req.user._id;

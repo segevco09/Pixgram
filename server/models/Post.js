@@ -73,40 +73,34 @@ const postSchema = new mongoose.Schema({
     default: 'public'
   },
   group: {
-    type: mongoose.Schema.Types.ObjectId, // This means the value is an ID from another collection
-    ref: 'Group',                        // This tells Mongoose this ID refers to a Group document
-    default: null                        // If the post is not for a group, this will be null
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Group',                        
+    default: null                        
   }
 }, { timestamps: true });
 
-// Virtual for like count
 postSchema.virtual('likeCount').get(function() {
   return this.likes.length;
 });
 
-// Virtual for comment count
 postSchema.virtual('commentCount').get(function() {
   return this.comments.length;
 });
 
-// Method to check if user liked the post
 postSchema.methods.isLikedBy = function(userId) {
   return this.likes.includes(userId);
 };
 
-// Method to add like
 postSchema.methods.addLike = function(userId) {
   if (!this.isLikedBy(userId)) {
     this.likes.push(userId);
   }
 };
 
-// Method to remove like
 postSchema.methods.removeLike = function(userId) {
   this.likes = this.likes.filter(id => !id.equals(userId));
 };
 
-// Ensure virtuals are included in JSON
 postSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('Post', postSchema); 

@@ -70,7 +70,6 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
@@ -83,12 +82,10 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Friend management methods
 userSchema.methods.isFriend = function(userId) {
   return this.friends.includes(userId);
 };
@@ -100,7 +97,6 @@ userSchema.methods.hasFriendRequest = function(userId) {
 userSchema.methods.addFriend = function(userId) {
   if (!this.isFriend(userId)) {
     this.friends.push(userId);
-    // Remove friend request if it exists
     this.friendRequests = this.friendRequests.filter(request => !request.from.equals(userId));
   }
 };
@@ -119,7 +115,6 @@ userSchema.methods.removeFriendRequest = function(userId) {
   this.friendRequests = this.friendRequests.filter(request => !request.from.equals(userId));
 };
 
-// Remove password from JSON output
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.password;

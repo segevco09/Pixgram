@@ -77,24 +77,16 @@ const groupSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Virtual for member count
 groupSchema.virtual('memberCount').get(function() {
-  // Fix: Check if this.members is an array before accessing .length
-  // This prevents errors if the members field is missing or undefined
   return Array.isArray(this.members) ? this.members.length : 0;
 });
 
-// Virtual for join request count
 groupSchema.virtual('joinRequestCount').get(function() {
-  // Fix: Check if this.joinRequests is an array before accessing .length
-  // This prevents errors if the joinRequests field is missing or undefined
   return Array.isArray(this.joinRequests) ? this.joinRequests.length : 0;
 });
 
-// Method to check if user is admin
 groupSchema.methods.isAdmin = function(userId) {
   const userIdString = userId.toString();
-  // Fix: Ensure this.admins is an array
   if (!Array.isArray(this.admins)) {
     this.admins = [];
   }
@@ -102,14 +94,12 @@ groupSchema.methods.isAdmin = function(userId) {
          this.creator.toString() === userIdString;
 };
 
-// Method to check if user is member
 groupSchema.methods.isMember = function(userId) {
   const userIdString = userId.toString();
   if (!Array.isArray(this.members)) {
     return false;
   }
   return this.members.some(member => {
-    // member.user can be an object or an ID
     if (typeof member.user === 'object' && member.user._id) {
       return member.user._id.toString() === userIdString;
     }
@@ -117,24 +107,19 @@ groupSchema.methods.isMember = function(userId) {
   });
 };
 
-// Method to check if user has join request pending
 groupSchema.methods.hasJoinRequest = function(userId) {
   const userIdString = userId.toString();
-  // Fix: Check if this.joinRequests is an array before using .some()
   if (!Array.isArray(this.joinRequests)) {
     return false;
   }
   return this.joinRequests.some(request => request.user.toString() === userIdString);
 };
 
-// Method to add member
 groupSchema.methods.addMember = function(userId, role = 'member') {
   const userIdString = userId.toString();
-  // Fix: Ensure this.members is an array
   if (!Array.isArray(this.members)) {
     this.members = [];
   }
-  // Fix: Ensure this.joinRequests is an array
   if (!Array.isArray(this.joinRequests)) {
     this.joinRequests = [];
   }
@@ -144,15 +129,12 @@ groupSchema.methods.addMember = function(userId, role = 'member') {
       user: userId,
       role: role
     });
-    // Remove from join requests if exists
     this.joinRequests = this.joinRequests.filter(req => req.user.toString() !== userIdString);
   }
 };
 
-// Method to remove member
 groupSchema.methods.removeMember = function(userId) {
   const userIdString = userId.toString();
-  // Fix: Ensure this.members is an array
   if (!Array.isArray(this.members)) {
     this.members = [];
     return;
@@ -160,10 +142,8 @@ groupSchema.methods.removeMember = function(userId) {
   this.members = this.members.filter(member => member.user.toString() !== userIdString);
 };
 
-// Method to add join request
 groupSchema.methods.addJoinRequest = function(userId, message = '') {
   const userIdString = userId.toString();
-  // Fix: Ensure this.joinRequests is an array
   if (!Array.isArray(this.joinRequests)) {
     this.joinRequests = [];
   }
@@ -175,10 +155,8 @@ groupSchema.methods.addJoinRequest = function(userId, message = '') {
   }
 };
 
-// Method to reject join request
 groupSchema.methods.rejectJoinRequest = function(userId) {
   const userIdString = userId.toString();
-  // Fix: Ensure this.joinRequests is an array
   if (!Array.isArray(this.joinRequests)) {
     this.joinRequests = [];
     return;
@@ -186,7 +164,6 @@ groupSchema.methods.rejectJoinRequest = function(userId) {
   this.joinRequests = this.joinRequests.filter(req => req.user.toString() !== userIdString);
 };
 
-// Ensure virtuals are included in JSON
 groupSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('Group', groupSchema); 

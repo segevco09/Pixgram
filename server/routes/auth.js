@@ -7,12 +7,10 @@ const authController = require('../controllers/authController');
 
 const router = express.Router();
 
-// Multer configuration for profile picture uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, '../uploads/profiles');
     
-    // Create directory if it doesn't exist
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
@@ -26,7 +24,6 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  // Accept only image files
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
@@ -38,43 +35,22 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024
   }
 });
 
-// @route   POST /api/auth/register
-// @desc    Register a new user
-// @access  Public
 router.post('/register', authController.register);
 
-// @route   POST /api/auth/login
-// @desc    Login user
-// @access  Public
 router.post('/login', authController.login);
 
-// @route   GET /api/auth/me
-// @desc    Get current user
-// @access  Private
 router.get('/me', auth, authController.getMe);
 
-// @route   GET /api/auth/user/:userId
-// @desc    Get user by ID for profile viewing
-// @access  Private
 router.get('/user/:userId', auth, authController.getUserById);
 
-// @route   GET /api/auth/users
-// @desc    Get all users for chat
-// @access  Private
 router.get('/users', auth, authController.getAllUsers);
 
-// @route   PUT /api/auth/bio
-// @desc    Update user bio
-// @access  Private
 router.put('/bio', auth, authController.updateBio);
 
-// @route   PUT /api/auth/profile-picture
-// @desc    Update user profile picture
-// @access  Private
 router.put('/profile-picture', auth, upload.single('profilePicture'), authController.updateProfilePicture);
 
 module.exports = router; 

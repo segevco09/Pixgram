@@ -3,7 +3,6 @@ const User = require('../models/User');
 const path = require('path');
 const fs = require('fs');
 
-// Test endpoint
 exports.testPosts = (req, res) => {
   res.json({ 
     message: 'Posts routes working!', 
@@ -11,7 +10,6 @@ exports.testPosts = (req, res) => {
   });
 };
 
-// Get posts for feed (user's posts + friends' posts)
 exports.getPosts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -20,7 +18,6 @@ exports.getPosts = async (req, res) => {
 
     const currentUser = await User.findById(req.user._id);
     
-    // Include posts from user and their friends
     const authorIds = [req.user._id, ...currentUser.friends];
 
     const posts = await Post.find({ 
@@ -48,7 +45,6 @@ exports.getPosts = async (req, res) => {
   }
 };
 
-// Create a new post
 exports.createPost = async (req, res) => {
   try {
     const { caption, tags, location, privacy } = req.body;
@@ -60,12 +56,10 @@ exports.createPost = async (req, res) => {
       privacy: privacy || 'public'
     };
 
-    // Handle tags
     if (tags) {
       postData.tags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
     }
 
-    // Handle media upload
     if (req.file) {
       postData.media = {
         type: req.file.mimetype.startsWith('image/') ? 'image' : 'video',
@@ -93,7 +87,6 @@ exports.createPost = async (req, res) => {
   }
 };
 
-// Update post
 exports.updatePost = async (req, res) => {
   try {
     const { caption, tags, location, privacy } = req.body;
@@ -107,7 +100,6 @@ exports.updatePost = async (req, res) => {
       });
     }
 
-    // Check if user owns the post
     if (post.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -115,7 +107,6 @@ exports.updatePost = async (req, res) => {
       });
     }
 
-    // Save edit history
     if (caption !== post.caption || tags !== post.tags.join(',')) {
       post.editHistory.push({
         editedAt: new Date(),
@@ -125,7 +116,6 @@ exports.updatePost = async (req, res) => {
       post.isEdited = true;
     }
 
-    // Update fields
     if (caption !== undefined) post.caption = caption;
     if (location !== undefined) post.location = location;
     if (privacy !== undefined) post.privacy = privacy;
@@ -151,7 +141,6 @@ exports.updatePost = async (req, res) => {
   }
 };
 
-// Delete post
 exports.deletePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -163,7 +152,6 @@ exports.deletePost = async (req, res) => {
       });
     }
 
-    // Check if user owns the post
     if (post.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -171,7 +159,6 @@ exports.deletePost = async (req, res) => {
       });
     }
 
-    // Delete associated media file
     if (post.media.filename) {
       const filePath = path.join(__dirname, '../uploads', post.media.filename);
       if (fs.existsSync(filePath)) {
@@ -194,7 +181,6 @@ exports.deletePost = async (req, res) => {
   }
 };
 
-// Like/unlike post
 exports.toggleLike = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -232,7 +218,6 @@ exports.toggleLike = async (req, res) => {
   }
 };
 
-// Add comment to post
 exports.addComment = async (req, res) => {
   try {
     const { content } = req.body;
@@ -261,7 +246,6 @@ exports.addComment = async (req, res) => {
     post.comments.push(newComment);
     await post.save();
 
-    // Get the last comment (the one just added)
     const savedComment = post.comments[post.comments.length - 1];
     const user = await User.findById(savedComment.user).select('username firstName lastName profilePicture');
     const commentWithUser = {
@@ -283,7 +267,6 @@ exports.addComment = async (req, res) => {
   }
 };
 
-// Delete comment
 exports.deleteComment = async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -304,7 +287,6 @@ exports.deleteComment = async (req, res) => {
       });
     }
 
-    // Check if user owns the comment or the post
     if (comment.user.toString() !== req.user._id.toString() && 
         post.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
@@ -329,7 +311,6 @@ exports.deleteComment = async (req, res) => {
   }
 };
 
-// Get posts by specific user
 exports.getUserPosts = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -337,10 +318,9 @@ exports.getUserPosts = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // Get posts by the specified user
     const posts = await Post.find({ 
       author: userId,
-      privacy: { $in: ['public', 'friends'] } // Only show public and friends posts
+      privacy: { $in: ['public', 'friends'] }
     })
       .populate('author', 'username firstName lastName profilePicture')
       .populate('comments.user', 'username firstName lastName profilePicture')
@@ -364,7 +344,6 @@ exports.getUserPosts = async (req, res) => {
   }
 };
 
-// Get a single post by ID
 exports.getPostById = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)

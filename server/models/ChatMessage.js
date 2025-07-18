@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 
-// Create a separate connection for the Chats database
 const chatsConnection = mongoose.createConnection(
   process.env.MONGODB_URI ? 
     process.env.MONGODB_URI.replace('/pixgram', '/Chats') : 
@@ -12,17 +11,16 @@ const chatsConnection = mongoose.createConnection(
 );
 
 chatsConnection.on('connected', () => {
-  console.log('✅ Connected to Chats database successfully');
+  console.log('Connected to Chats database successfully');
 });
 
 chatsConnection.on('error', (error) => {
-  console.error('❌ Chats database connection error:', error);
+  console.error('Chats database connection error:', error);
 });
 
-// Schema for individual chat messages
 const chatMessageSchema = new mongoose.Schema({
   senderId: {
-    type: String, // Store as string ObjectId
+    type: String,
     required: true,
     index: true
   },
@@ -31,7 +29,7 @@ const chatMessageSchema = new mongoose.Schema({
     required: true
   },
   receiverId: {
-    type: String, // Store as string ObjectId
+    type: String,
     required: true,
     index: true
   },
@@ -68,39 +66,31 @@ const chatMessageSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for efficient querying
 chatMessageSchema.index({ createdAt: -1 });
 chatMessageSchema.index({ senderId: 1, createdAt: -1 });
 chatMessageSchema.index({ receiverId: 1, isRead: 1 });
 
-// Class to manage chat collections dynamically
 class ChatManager {
   constructor() {
-    this.models = new Map(); // Cache for dynamic models
+    this.models = new Map();
   }
 
-  // Generate consistent collection name for two users
   generateCollectionName(userId1, userId2) {
-    // Validate inputs
     if (!userId1 || !userId2) {
       throw new Error(`Invalid user IDs: userId1=${userId1}, userId2=${userId2}`);
     }
     
-    // Always put the smaller ID first to ensure consistency
     const sortedIds = [userId1.toString(), userId2.toString()].sort();
     return `chat_${sortedIds[0]}_${sortedIds[1]}`;
   }
 
-  // Get or create a chat model for two users
   getChatModel(userId1, userId2) {
     const collectionName = this.generateCollectionName(userId1, userId2);
     
-    // Return cached model if exists
     if (this.models.has(collectionName)) {
       return this.models.get(collectionName);
     }
 
-    // Create new model for this chat
     const ChatModel = chatsConnection.model(collectionName, chatMessageSchema, collectionName);
     this.models.set(collectionName, ChatModel);
     
@@ -108,7 +98,6 @@ class ChatManager {
     return ChatModel;
   }
 
-  // Send a message
   async sendMessage(senderId, senderName, receiverId, receiverName, content, messageType = 'text') {
     try {
       const ChatModel = this.getChatModel(senderId, receiverId);
@@ -123,7 +112,6 @@ class ChatManager {
       });
 
       await message.save();
-      console.log(`💬 Message saved to collection: ${this.generateCollectionName(senderId, receiverId)}`);
       return message;
     } catch (error) {
       console.error('Error sending message:', error);
@@ -131,7 +119,6 @@ class ChatManager {
     }
   }
 
-  // Get conversation history
   async getConversation(userId1, userId2, limit = 50, skip = 0) {
     try {
       const ChatModel = this.getChatModel(userId1, userId2);
@@ -140,17 +127,15 @@ class ChatManager {
         .sort({ createdAt: -1 })
         .limit(limit)
         .skip(skip)
-        .lean(); // Use lean() for better performance
+        .lean();
 
-      console.log(`📖 Retrieved ${messages.length} messages from ${this.generateCollectionName(userId1, userId2)}`);
-      return messages.reverse(); // Return oldest first
+      return messages.reverse();
     } catch (error) {
       console.error('Error getting conversation:', error);
       return [];
     }
   }
 
-  // Mark messages as read
   async markMessagesAsRead(senderId, receiverId) {
     try {
       const ChatModel = this.getChatModel(senderId, receiverId);
@@ -170,7 +155,6 @@ class ChatManager {
         }
       );
 
-      console.log(`✅ Marked ${result.modifiedCount} messages as read`);
       return result;
     } catch (error) {
       console.error('Error marking messages as read:', error);
@@ -178,17 +162,15 @@ class ChatManager {
     }
   }
 
-  // Get unread message count for a user
   async getUnreadCount(userId) {
     try {
       let totalUnread = 0;
       
-      // Get all collections in the Chats database
       const collections = await chatsConnection.db.listCollections().toArray();
       
       for (const collection of collections) {
         if (collection.name.startsWith('chat_') && collection.name.includes(userId.toString())) {
-          const ChatModel = this.getChatModel(userId, userId); // Just to get the model structure
+          const ChatModel = this.getChatModel(userId, userId);
           const Model = chatsConnection.model(collection.name, chatMessageSchema, collection.name);
           
           const count = await Model.countDocuments({
@@ -201,7 +183,6 @@ class ChatManager {
         }
       }
 
-      console.log(`📊 User ${userId} has ${totalUnread} unread messages`);
       return totalUnread;
     } catch (error) {
       console.error('Error getting unread count:', error);
@@ -209,31 +190,26 @@ class ChatManager {
     }
   }
 
-  // Get all conversations for a user
   async getUserConversations(userId) {
     try {
       const conversations = [];
       
-      // Get all collections in the Chats database
       const collections = await chatsConnection.db.listCollections().toArray();
       
       for (const collection of collections) {
         if (collection.name.startsWith('chat_') && collection.name.includes(userId.toString())) {
           const Model = chatsConnection.model(collection.name, chatMessageSchema, collection.name);
           
-          // Get the last message from this conversation
           const lastMessage = await Model.findOne({ isDeleted: false })
             .sort({ createdAt: -1 })
             .lean();
 
           if (lastMessage) {
-            // Determine the other user
             const otherUserId = lastMessage.senderId === userId.toString() ? 
               lastMessage.receiverId : lastMessage.senderId;
             const otherUserName = lastMessage.senderId === userId.toString() ? 
               lastMessage.receiverName : lastMessage.senderName;
 
-            // Get unread count for this conversation
             const unreadCount = await Model.countDocuments({
               receiverId: userId.toString(),
               isRead: false,
@@ -251,10 +227,8 @@ class ChatManager {
         }
       }
 
-      // Sort by last message timestamp
       conversations.sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
       
-      console.log(`📋 Found ${conversations.length} conversations for user ${userId}`);
       return conversations;
     } catch (error) {
       console.error('Error getting user conversations:', error);
@@ -262,12 +236,10 @@ class ChatManager {
     }
   }
 
-  // Edit a message
   async editMessage(messageId, senderId, receiverId, newContent) {
     try {
       const ChatModel = this.getChatModel(senderId, receiverId);
       
-      // Find and update the message, but only if it belongs to the sender
       const result = await ChatModel.findOneAndUpdate(
         { 
           _id: messageId, 
@@ -282,10 +254,10 @@ class ChatManager {
       );
 
       if (result) {
-        console.log(`✏️ Message ${messageId} edited successfully`);
+        console.log(`Message edited successfully`);
         return result;
       } else {
-        console.log(`❌ Message ${messageId} not found or not authorized to edit`);
+        console.log(`Message not found or not authorized to edit`);
         return null;
       }
     } catch (error) {
@@ -294,33 +266,25 @@ class ChatManager {
     }
   }
 
-  // Delete a message
   async deleteMessage(messageId, senderId, receiverId) {
     try {
       const ChatModel = this.getChatModel(senderId, receiverId);
       
-      // First find the message to verify ownership
       const message = await ChatModel.findById(messageId);
       
       if (!message) {
-        console.log(`❌ Message ${messageId} not found`);
         return null;
       }
       
-      // Check if the user is the sender of the message
       if (message.senderId !== senderId.toString()) {
-        console.log(`❌ User ${senderId} not authorized to delete message ${messageId} (belongs to ${message.senderId})`);
         return null;
       }
       
-      // Hard delete - actually remove from database
       const result = await ChatModel.findByIdAndDelete(messageId);
 
       if (result) {
-        console.log(`🗑️ Message ${messageId} permanently deleted from database by sender ${senderId}`);
       return result;
       } else {
-        console.log(`❌ Failed to delete message ${messageId}`);
         return null;
       }
     } catch (error) {
@@ -330,7 +294,6 @@ class ChatManager {
   }
 }
 
-// Export singleton instance
 const chatManager = new ChatManager();
 
 module.exports = {

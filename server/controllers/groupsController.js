@@ -1,7 +1,6 @@
 const Group = require('../models/Group');
 const Post = require('../models/Post');
 
-// Get all groups with search/filter
 exports.getGroups = async (req, res) => {
   try {
     const { search, category, privacy } = req.query;
@@ -39,7 +38,6 @@ exports.getGroups = async (req, res) => {
   }
 };
 
-// Get single group (with access control)
 exports.getGroup = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id)
@@ -61,7 +59,6 @@ exports.getGroup = async (req, res) => {
   }
 };
 
-// Create new group
 exports.createGroup = async (req, res) => {
   try {
     const { name, description, privacy, category } = req.body;
@@ -85,7 +82,6 @@ exports.createGroup = async (req, res) => {
   }
 };
 
-// Update group (admin only)
 exports.updateGroup = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -107,7 +103,6 @@ exports.updateGroup = async (req, res) => {
   }
 };
 
-// Delete group (creator only)
 exports.deleteGroup = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -125,7 +120,6 @@ exports.deleteGroup = async (req, res) => {
   }
 };
 
-// Join a group (public or private)
 exports.joinGroup = async (req, res) => {
   try {
     const { message } = req.body;
@@ -152,7 +146,6 @@ exports.joinGroup = async (req, res) => {
   }
 };
 
-// Leave a group
 exports.leaveGroup = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -173,7 +166,6 @@ exports.leaveGroup = async (req, res) => {
   }
 };
 
-// Approve join request (admin only)
 exports.approveJoinRequest = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -193,7 +185,6 @@ exports.approveJoinRequest = async (req, res) => {
   }
 };
 
-// Reject join request (admin only)
 exports.rejectJoinRequest = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -209,7 +200,6 @@ exports.rejectJoinRequest = async (req, res) => {
   }
 };
 
-// Get group posts (members only, paginated)
 exports.getGroupPosts = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -238,7 +228,6 @@ exports.getGroupPosts = async (req, res) => {
   }
 };
 
-// Create a post in a group
 exports.createGroupPost = async (req, res) => {
   try {
     const groupId = req.params.groupId;
@@ -272,7 +261,6 @@ exports.createGroupPost = async (req, res) => {
   }
 };
 
-// Check if user is a member of a group
 exports.isMember = async (req, res) => {
   const group = await Group.findById(req.params.groupId);
   if (!group) return res.status(404).json({ error: 'Group not found' });
@@ -280,14 +268,13 @@ exports.isMember = async (req, res) => {
   res.json({ member: isMember });
 };
 
-// Remove a member (creator only)
 exports.removeMember = async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) {
       return res.status(404).json({ success: false, message: 'Group not found' });
     }
-    // Only creator can remove members
+
     if (!group.creator.equals(req.user._id)) {
       return res.status(403).json({ success: false, message: 'Only the group creator can remove members' });
     }
@@ -295,12 +282,10 @@ exports.removeMember = async (req, res) => {
     if (!group.isMember(userId)) {
       return res.status(400).json({ success: false, message: 'User is not a member of this group' });
     }
-    // Prevent creator from removing themselves
     if (group.creator.equals(userId)) {
       return res.status(400).json({ success: false, message: 'Creator cannot remove themselves' });
     }
     group.removeMember(userId);
-    // Also remove from admins if present
     group.admins = group.admins.filter(admin => admin.toString() !== userId);
     await group.save();
     res.json({ success: true, message: 'Member removed successfully' });

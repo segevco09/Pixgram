@@ -1,12 +1,10 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-// Register a new user
 exports.register = async (req, res) => {
   try {
     const { username, email, password, firstName, lastName } = req.body;
 
-    // Check if user already exists
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
       return res.status(400).json({
@@ -17,11 +15,9 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create new user
     const user = new User({ username, email, password, firstName, lastName });
     await user.save();
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -43,7 +39,6 @@ exports.register = async (req, res) => {
       }
     });
   } catch (error) {
-    // Only log errors, not sensitive data
     console.error('Register error:', error);
     res.status(500).json({
       success: false,
@@ -52,12 +47,9 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login user
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -65,7 +57,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if user exists
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
@@ -74,7 +65,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -83,11 +73,9 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -117,7 +105,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// Get current user info (for /me endpoint)
 exports.getMe = async (req, res) => {
   try {
     res.json({
@@ -129,7 +116,6 @@ exports.getMe = async (req, res) => {
   }
 };
 
-// Get user by ID (for profile viewing)
 exports.getUserById = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -152,7 +138,6 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// (Optional) Get all users (for chat/friends list)
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ isActive: true })
@@ -170,7 +155,6 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// Update user profile picture
 exports.updateProfilePicture = async (req, res) => {
   const fs = require('fs');
   const path = require('path');
@@ -183,7 +167,6 @@ exports.updateProfilePicture = async (req, res) => {
       });
     }
 
-    // Delete old profile picture if it exists
     const user = await User.findById(req.user.id);
     if (user.profilePicture) {
       const oldImagePath = path.join(__dirname, '../uploads/profiles', path.basename(user.profilePicture));
@@ -191,8 +174,6 @@ exports.updateProfilePicture = async (req, res) => {
         fs.unlinkSync(oldImagePath);
       }
     }
-
-    // Update user with new profile picture URL
     const profilePictureUrl = `/uploads/profiles/${req.file.filename}`;
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
@@ -207,7 +188,6 @@ exports.updateProfilePicture = async (req, res) => {
     });
 
   } catch (error) {
-    // Clean up uploaded file if there was an error
     if (req.file) {
       const filePath = req.file.path;
       if (fs.existsSync(filePath)) {
@@ -222,13 +202,11 @@ exports.updateProfilePicture = async (req, res) => {
   }
 };
 
-// Update user bio
 exports.updateBio = async (req, res) => {
   const User = require('../models/User');
   try {
     const { bio } = req.body;
 
-    // Validate bio length
     if (bio && bio.length > 500) {
       return res.status(400).json({
         success: false,
@@ -236,7 +214,6 @@ exports.updateBio = async (req, res) => {
       });
     }
 
-    // Update user bio
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
       { bio: bio || '' },
