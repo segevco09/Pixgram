@@ -4,9 +4,6 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// @route   POST /api/test/create-users
-// @desc    Create test users for development
-// @access  Public (for testing only)
 router.post('/create-users', async (req, res) => {
   try {
     const testUsers = [
@@ -47,7 +44,6 @@ router.post('/create-users', async (req, res) => {
       }
     ];
 
-    // Check if users already exist
     const existingUsers = await User.find({
       email: { $in: testUsers.map(u => u.email) }
     });
@@ -60,7 +56,6 @@ router.post('/create-users', async (req, res) => {
       });
     }
 
-    // Create test users
     const createdUsers = await User.insertMany(testUsers);
 
     res.json({
@@ -83,9 +78,6 @@ router.post('/create-users', async (req, res) => {
   }
 });
 
-// @route   GET /api/test/users
-// @desc    Get all users for testing/chat
-// @access  Public (for testing only)
 router.get('/users', async (req, res) => {
   try {
     console.log('📋 Getting all users for chat...');
@@ -93,7 +85,7 @@ router.get('/users', async (req, res) => {
     const users = await User.find({}, 'firstName lastName name username email createdAt')
       .select('username firstName lastName name email createdAt')
       .sort({ createdAt: -1 })
-      .limit(20); // Limit to prevent too much data
+      .limit(20);
 
     console.log(`👥 Found ${users.length} users`);
 
